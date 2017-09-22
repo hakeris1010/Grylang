@@ -1,0 +1,65 @@
+<trans_unit> ::== {<ext_object>}*
+
+<ext_object> ::== <declaration>
+                | <ext_variable_definition>
+                | <function_definition> 
+                | <class_definition>
+
+<declaration> ::== <variable_declaration>
+                 | <function_declaration>
+                 | <class_declaration> 
+
+
+<ext_variable_definition> ::== <variable_declaration> "=" <init_expression> ?
+
+<function_definition> ::== <function_declaration> <code_block>
+
+<class_definition> ::== <class_declaration> <class_block>
+
+
+
+<variable_declaration> ::== <typespec> <ident>
+
+<function_declaration> ::== "fun" <ident> <param_list> : <typespec> 
+
+<class_declaration> ::== "class" <ident> 
+
+
+
+<code_block> ::== "{" {<statement>}* "}"
+
+<class_block> ::== "{" {<class_access_spec> <ext_object>}* "}"
+
+<class_access_spec> ::== "private"
+                       | "protected"
+                       | "public"  
+
+<param_list> ::== "(" <variable_declaration> {"," <variable_declaration>} ")"
+
+
+
+<typespec> ::== <type_qualifier> <type_specifier>
+
+<type_qualifier> ::== "const" 
+                    | "volatile"
+
+<type_specifier> ::== <direct_typespec> { "*" }*
+
+<direct_typespec> ::== <basic_typespec>
+                     | <array_typespec>
+
+<basic_typespec> ::== "char"  
+                    | "int"
+                    | "int16"
+                    | "int32"
+                    | "int64"   
+                    | "float"
+                    | "double" 
+                    | "void"
+                    | <ident>
+
+<array_typespec> ::== <basic_typespec> { "[" <const_expression> "]" }+
+
+
+
+<statement> ::== 
