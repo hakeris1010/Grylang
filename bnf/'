@@ -60,20 +60,16 @@
 
 <array_typespec> ::== <basic_typespec> { "[" <const_expression> "]" }+
 
-<const_expression> ::== <expression>
+
 
 <statement> ::==  <code_block>
                 | <selection_stat>
                 | <iteration_stat>
                 | <jump_stat>
-                | <variable_declaration>
                 | <expression>
 
-#--------------------------------------------
-# Expressions 
-#--------------------------------------------
-
-<expression> ::== <assignment_expression>
+<expression> ::== <variable_declaration>
+                | <assignment_expression>
                 | <unary_expression>
 
 <assignment_expression> ::== <ident> <assignment_operator> <logical_or_expression>
@@ -170,10 +166,5 @@
 #--------------------------------------------
 # Conditionals and Loops
 #--------------------------------------------
-
-<selection_stat>
- <iteration_stat>
- <jump_stat>
-
 
 
