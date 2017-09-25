@@ -10,7 +10,7 @@
                  | <class_declaration> 
 
 
-<ext_variable_definition> ::== <variable_declaration> "=" <init_expression> ?
+<ext_variable_definition> ::== <variable_declaration> "=" <expression> ?
 
 <function_definition> ::== <function_declaration> <code_block>
 
@@ -22,8 +22,12 @@
 
 <function_declaration> ::== "fun" <ident> <param_list> : <typespec> 
 
-<class_declaration> ::== "class" <ident> 
+<class_declaration> ::== "class" <ident> <class_inheritance>
 
+<class_inheritance> ::== <extend_specifier> <ident> {"," <ident>}*
+
+<extend_specifier> ::== "extends"
+                      | "implements"
 
 
 <code_block> ::== "{" {<statement>}* "}"
@@ -34,7 +38,7 @@
                        | "protected"
                        | "public"  
 
-<param_list> ::== "(" <variable_declaration> {"," <variable_declaration>} ")"
+<param_list> ::== "(" {<variable_declaration>}? {"," <variable_declaration>}* ")"
 
 
 
@@ -56,6 +60,8 @@
                     | "float"
                     | "double" 
                     | "void"
+                    | "fun"
+                    | "var"
                     | <ident>
 
 <array_typespec> ::== <basic_typespec> { "[" <const_expression> "]" }+
@@ -66,6 +72,7 @@
                 | <selection_stat>
                 | <iteration_stat>
                 | <jump_stat>
+                | <labeled_stat>
                 | <variable_declaration>
                 | <expression>
 
@@ -74,9 +81,15 @@
 #--------------------------------------------
 
 <expression> ::== <assignment_expression>
-                | <unary_expression>
+                | <logical_or_expression>
+                | <initialization_expression>
+                | <range_expression>
 
-<assignment_expression> ::== <ident> <assignment_operator> <logical_or_expression>
+<initialization_expression> ::== "{" {<expression>}? { "," <expression> }* "}"
+
+<range_expression> ::== <expression> ".." <expression>
+
+<assignment_expression> ::== <ident> <assignment_operator> <expression>
 
 <assignment_operator> ::== "="
                          | "+="
@@ -163,7 +176,11 @@
                         | <string>
                         | "(" <expression> ")"
 
-<function_call> ::== <secondary_expression> "(" { <expression> {"," <expression>}* }* ")"
+<constant> ::== <integer_constant>
+              | <character_constant>
+              | <floating_constant>
+
+<function_call> ::== <secondary_expression> "(" { {<expression>}? {"," <expression>}* }* ")"
                       
 <array_access> ::== <secondary_expression> { "[" <expression> "]" }+
 
@@ -171,9 +188,31 @@
 # Conditionals and Loops
 #--------------------------------------------
 
-<selection_stat>
- <iteration_stat>
- <jump_stat>
+<selection_stat> ::== <if_statement>
+                    | <switch_statement>
 
+<if_statement> ::== "if" "(" <expression> ")" <statement> 
+                        {"else if" "(" <expression> ")" <statement>}*
+                        {"else" <statement>}?
+
+<switch_statement> ::== "switch" "(" <expression> ")" 
+                        "{" {"case" <expression> ":" {<statement>}* }* 
+                            {"default" ":" {<statement>}* }? "}"
+                    
+<iteration_stat> ::== <while_loop> 
+                    | <for_loop>
+                    | <foreach_loop>
+
+<while_loop> ::== "while" "(" {<expression>}? ")" <statement>
+
+<for_loop> ::== "for" "(" {<expression>}? ";" {<expression>}? ";" {<expression>}? ")" <statement>
+
+<foreach_loop> ::== "foreach" "(" {<ident> "in" <expression>}? ")"
+
+
+<jump_stat> ::== "break"
+               | "goto" <ident> 
+
+<labeled_stat> ::== <ident> ":"
 
 
