@@ -20,7 +20,7 @@
 
 <variable_declaration> ::== <typespec> <ident>
 
-<function_declaration> ::== "fun" <ident> <param_list> : <typespec> 
+<function_declaration> ::== "fun" <ident> <param_list> {":" <typespec>}?
 
 <class_declaration> ::== "class" <ident> <class_inheritance>
 
@@ -32,11 +32,21 @@
 
 <code_block> ::== "{" {<statement>}* "}"
 
-<class_block> ::== "{" {<class_access_spec> <ext_object>}* "}"
+<class_block> ::== "{" { {<class_access_spec>}* <class_object> }* "}"
 
 <class_access_spec> ::== "private"
                        | "protected"
                        | "public"  
+                       | "override"
+                       | "final" 
+
+<class_object> ::== <ext_object>
+                  | <class_constructor>
+                  | <class_destructor>
+                    
+<class_constructor> ::== <ident> <param_list>
+
+<class_destructor> ::== "~" <ident> "(" ")"
 
 <param_list> ::== "(" {<variable_declaration>}? {"," <variable_declaration>}* ")"
 
@@ -64,7 +74,7 @@
                     | "var"
                     | <ident>
 
-<array_typespec> ::== <basic_typespec> { "[" <const_expression> "]" }+
+<array_typespec> ::== <basic_typespec> { "[" {<const_expression>}? "]" }+
 
 <const_expression> ::== <expression>
 
@@ -212,6 +222,7 @@
 
 <jump_stat> ::== "break"
                | "goto" <ident> 
+               | "return" {<expression>}? 
 
 <labeled_stat> ::== <ident> ":"
 

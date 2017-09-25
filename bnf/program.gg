@@ -1,0 +1,45 @@
+#import stdlib
+
+class foo
+{
+    private const float x = "3.14"
+    public foo()
+    {
+        print("foo"+x)
+    }
+}
+
+fun randint() : int
+{
+    return (int)rand()
+}
+
+fun main(int argc, char[][] argv) : int
+{
+    // array foreach test
+    char[5] arr = "hello"
+
+    foreach ( c in arr )
+        print(c)
+
+    // implicit cast to string
+    println('\n'+(char)(2+2))
+
+    // function calls
+    var a = randint();
+
+    print(a)
+
+    // goto test
+    int16 a = 0;
+
+    uuu:    
+    if(a > 3)
+        goto eee;
+    a++
+    goto uuu
+
+    eee:
+
+    return 0;
+}
