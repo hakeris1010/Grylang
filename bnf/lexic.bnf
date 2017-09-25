@@ -1,13 +1,25 @@
 <keyword> ::== "char" | "int" | "int16" | "int32" | "int64" | "float" | "double" | "void" | "var"
              | "fun" | "class" | "private" | "protected" | "public" | "extends" | "implements" 
              | "const" | "volatile" | "if" | "else" | "switch" | "case" | "default" | "while" 
-             | "for" | "foreach" | "in" | "break" | "goto"
+             | "for" | "foreach" | "in" | "break" | "goto" | "return"
 
-<ident> ::== [a-zA-Z_]{\w}*
+<ident> ::== [a-zA-Z_]{<w>}*
 
-<integer_constant> ::== {\d}+
+<integer_constant> ::== {<d>}+
 
-<character_constant> ::== "\'" [\x20-\x7e] "\'"
+<character_constant> ::== "\'" {<p>}* "\'"
 
-<string> ::== "\"" {.}* "\""
+<floating_constant> ::== {<d>}+ "." {<d>}+
+
+<string> ::== "\"" {<d>}* "\""
+
+<d> ::== [0-9]
+<w> ::== [a-zA-Z0-9_]
+<p> ::== [\x20-\x7e]
+
+<operator> ::== "{" | "}" | "[" | "]" | "(" | ")" | "." | "," | ":" | ";" 
+              | "~" | "^" | "&" | "|" | "!" | "+" | "-" | "*" | "/" | "%" 
+              | "=" | "*=" | "+=" | "-=" | "/=" | "&=" | "|=" | "^="
+              | "!=" | "==" | "<=" | ">=" | "<" | ">" | "->" | ">>" | "<<"
+
 

@@ -10,7 +10,7 @@
                  | <class_declaration> 
 
 
-<ext_variable_definition> ::== <variable_declaration> "=" <expression> ?
+<ext_variable_definition> ::== <variable_declaration> "=" <expression> 
 
 <function_definition> ::== <function_declaration> <code_block>
 
@@ -180,6 +180,7 @@
                           | <array_access>
                           | <secondary_expression> "." <secondary_expression>  
                           | <secondary_expression> "->" <secondary_expression>
+                          | <print_call>
 
 <primary_expression> ::== <ident> 
                         | <constant>
@@ -225,5 +226,12 @@
                | "return" {<expression>}? 
 
 <labeled_stat> ::== <ident> ":"
+
+#----------------------------
+# HardCoded Libfunctions
+#----------------------------
+
+<print_call> ::== "print" "(" <expression> ")"
+                | "println" "(" <expression> ")"
 
 
