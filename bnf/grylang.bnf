@@ -180,7 +180,7 @@
                           | <array_access>
                           | <secondary_expression> "." <secondary_expression>  
                           | <secondary_expression> "->" <secondary_expression>
-                          | <print_call>
+                          | <print_call> 
 
 <primary_expression> ::== <ident> 
                         | <constant>
@@ -193,7 +193,7 @@
 
 <function_call> ::== <secondary_expression> "(" { {<expression>}? {"," <expression>}* }* ")"
                       
-<array_access> ::== <secondary_expression> { "[" <expression> "]" }+
+<array_access> ::== <secondary_expression> { "[" {<expression>}? "]" }+
 
 #--------------------------------------------
 # Conditionals and Loops
@@ -233,5 +233,12 @@
 
 <print_call> ::== "print" "(" <expression> ")"
                 | "println" "(" <expression> ")"
+
+<input_call> ::== "input" "(" <string> "," <addressable> ")"
+
+<addressable> ::== <ident>
+                 | <secondary_expression> "." <ident>
+                 | <secondary_expression> "->" <ident>
+                 | <array_access>
 
 
