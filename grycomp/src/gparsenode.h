@@ -49,9 +49,13 @@ class ParseNode
             return children[ children.size()-1 ];
         }
 
-        /*virtual std::shared_ptr<ParseNode> getNextChild(bool pop){
-            if(pop && currChildIndex)
-            */
+        virtual std::shared_ptr<ParseNode> getNextChild(){
+            if(currChildIndex < children.size()){
+                currChildIndex++;
+                return children(currChildIndex-1);
+            }
+            return children(children.size()-1);               
+        }            
 }
         
 }
