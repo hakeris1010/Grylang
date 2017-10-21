@@ -1,4 +1,6 @@
 #include <memory>
+#include <fstream>
+#include <gryltools/blockingqueue.hpp>
 #include "gparsenode.h"
 
 namespace gpar{
@@ -19,8 +21,30 @@ class GParser
         virtual std::shared_ptr<ParseNode> getNextNode(const& ParseData criteria)=0;
 
         // All-tree methods
-        virtual std::shared_ptr<ParseNode> buildParseTree()=0;
-        virtual void parseNodesToQueue();
+        virtual std::shared_ptr<ParseNode> buildParseTree();
+        virtual void parseNodesToQueue(gtools::BlockingQueue& queue);
 };
+
+class GBlockParser : GParser
+{
+    private:
+        std::string
+    protected:
+
+    public:
+        GBlockParser(
+
+}
+
+class GFileParser : GBlockParser
+{
+    protected:
+        std::ifstream inputFile;
+
+    public:
+        
+    
+}
+
 
 }
