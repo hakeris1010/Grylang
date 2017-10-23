@@ -49,9 +49,8 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
         // Actual automaton part
         
         newNode.data.push_back(c);
+        newNode.code = LexemCode::CHAR;
         break;
-        
-
     }
 
     if(newNode.code == LexemCode::NONE)

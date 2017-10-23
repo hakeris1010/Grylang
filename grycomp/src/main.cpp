@@ -8,5 +8,13 @@ int main(int argc, char** argv){
 
     gpar::GrylangLexer lex(stream);
 
+    std::shared_ptr<gpar::ParseNode> node;
+    while( (node=lex.getNextNode()) != nullptr ){
+        std::cout<<node;
+
+        if(node.code == gpar::GrylangLexer::LexemCode::FatalERROR) 
+            break;
+    }
+
     return 0;
 }

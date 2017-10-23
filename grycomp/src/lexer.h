@@ -62,8 +62,9 @@ public:
     LexicParseData(const LexicParseData& pd) : code(pd.code), data(pd.data) {}
     LexicParseData(GrylangLexer::LexemCode _code, const std::string& _data) : code(_code), data(_data) {}
 
-    //GrylangLexer::LexemCode getCode(){ return code; }
-    //std::string getData(){ return data; }
+    virtual std::ostream& print(std::ostream& os){
+        return os<<"Code: "<< this->code <<", Data: "<< this->data;
+    }
 
     GrylangLexer::LexemCode code = GrylangLexer::LexemCode::NONE;
     std::string data;
