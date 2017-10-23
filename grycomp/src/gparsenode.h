@@ -19,14 +19,16 @@ class ParseData
         virtual std::ostream& print(std::ostream& os)=0;
 };
 
-std::ostream& operator<<(std::ostream& os, std::shared_ptr<ParseData> pd){
+/*
+inline std::ostream& operator<<(std::ostream& os, std::shared_ptr<ParseData> pd){
     return os<<pd.get();
 }
 
-std::ostream& operator<<(std::ostream& os, ParseData* pd){
+
+inline std::ostream& operator<<(std::ostream& os, ParseData* pd){
     return pd->print(os);
 }
-
+*/
 /*! Node structure for storing the Parse data. 
  *  - Can be combined into linear or tree-like, or even mesh-based networks.
  *  - Uses std pointers to make even parse loops.
