@@ -29,8 +29,11 @@ ZSH_RESULT:=$(shell mkdir -p $(OBJDIR) $(TESTDIR) $(LIBDIR) $(BINDIR_RELEASE) $(
 #----- Grylcomp Sources/Libs ----#
 
 GRYLCOMP= grylcomp
-SOURCES_GRYLCOMP= src/main.cpp
+SOURCES_GRYLCOMP= src/main.cpp src/lexer.cpp 
 LIBS_GRYLCOMP= 
+
+#----- GrylTools Includes/Libs --#
+INCLUDE_GRYLTOOLS= ../gryltools/include
 
 #--------- Test sources ---------#
 
@@ -44,14 +47,17 @@ TESTNAME= $(TEST1)
 
 #====================================#
 
-DEBUG_INCLUDES= 
-RELEASE_INCLUDES= 
+DEBUG_INCLUDES= $(INCLUDE_GRYLTOOLS)
+RELEASE_INCLUDES= $(INCLUDE_GRYLTOOLS)
 
 BINPREFIX= 
 
 #===================================#
 
 all: debug
+
+debug: debops $(GRYLCOMP) $(TESTNAME)
+release: relops $(GRYLCOMP) $(TESTNAME)
 
 debops: 
 	$(eval CXXFLAGS += $(DEBUG_CXXFLAGS) $(DEBUG_INCLUDES))
@@ -60,9 +66,6 @@ debops:
 relops: 
 	$(eval CXXFLAGS += $(RELEASE_CXXFLAGS) $(RELEASE_INCLUDES)) 
 	$(eval BINPREFIX = $(BINDIR_RELEASE)) 
-
-debug: debops $(GRYLCOMP) $(TESTNAME)
-release: relops $(GRYLCOMP) $(TESTNAME)
 
 .cpp.o:
 	$(CXX) $(CXXFLAGS) -c $*.cpp -o $*.o

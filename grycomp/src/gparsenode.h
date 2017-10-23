@@ -1,3 +1,6 @@
+#ifndef GPARSENODE_H_INCLUDED
+#define GPARSENODE_H_INCLUDED
+
 #include <memory>
 #include <vector>
 
@@ -12,7 +15,7 @@ class ParseData
     public:
         ParseData(){}
         virtual ~ParseData(){}
-}
+};
 
 /*! Node structure for storing the Parse data. 
  *  - Can be combined into linear or tree-like, or even mesh-based networks.
@@ -29,10 +32,11 @@ class ParseNode
         size_t childPosition = 0;
 
     public:
+        ParseNode(){}
         ParseNode(std::shared_ptr<ParseData> data) : parseData(data) {}
         virtual ~ParseNode(){}
 
-        virtual std::shared_ptr<ParseData> getParseData() const {
+        std::shared_ptr<ParseData> getParseData() const {
             return parseData;
         }
 
@@ -57,6 +61,8 @@ class ParseNode
             childPosition = children.size()-1;
             return children[childPosition];
         }
+};
+
 }
         
-}
+#endif //GPARSENODE_H_INCLUDED
