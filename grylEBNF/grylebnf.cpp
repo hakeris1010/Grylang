@@ -27,4 +27,35 @@
  *
  *    - [2-byte Tag ID]:  The ID of a tag this rule defines.
  *    - [No. of options]: The number of available definition options (in eBNF, separated by |).
- *    - [Option]:         gBNF-defined language option.
+ *    - [Option]:         gBNF-defined language option. Options are separated by \0.
+ *
+ *  - gBNF language option definition:
+ *      Similar to eBNF, but format is different. Elements have their Types, which are represented as a
+ *      single special ASCII character. These characters need to be escaped if used anywhere else.
+ *
+ *      These characters are: ? * + " < \
+ *
+ *    - (? * +) The Group repetition specifier. The wildcards are presented before the group.
+ *      Then follows the 2-byte size of the group (number of elements): e.g.:
+ *
+ *      ?89...   (? is a wildcard, 89 are 2 bytes representing the number of elements, 
+ *                  and then follows the elements)
+ *
+ *    - ( " ) The raw text to be matched in regex-like format. The size of the string is 
+ *      a 2-byte word after the ", e.g.:
+ *
+ *      "89[_a-zA-Z] 
+ *
+ *    - ( < ) The tag format: <[byte-1][byte-2], e.g.:
+ *
+ *      <89  (8 and 9 are not numbers, but ASCII chars with values representing lower and higher bytes).
+ *
+ *    - Some chars need to be escaped. That's why we use the \ to escape them.
+ *      E.g. when ascii value of one of bytes representing size if equal to '\', it needs to 
+ *      be escaped with another '\', so written like '\\'.
+ */
+
+#include <iostream>
+#include <fstream>
+#include <string>
+
