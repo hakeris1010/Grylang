@@ -1,0 +1,54 @@
+ GrylloBNF specs:
+  - Bytes 0-3: Magic Number "gBNF"
+  - Byte  4:   Version number
+
+  - Byte  5:   File property flags.
+    - Bit 0: Tag table present
+    - Bit 1: Grammar rule table present
+
+  - Byte  6-7: Tag table lenght in bytes
+  - Byte  8-9: Grammar rule table lenght.
+    (More size bytes can be present if more tables are present)
+
+  - Remaining bytes - Data payload. Present in this order:
+    1. Tag table
+    2. Grammar rule table
+    3. Additional tables.
+
+  - Tag table structure (n is variable, rows are terminated by \0).
+    |   0   |   1   |   2   |  . . . . . . .  |  n-1  |   n   |
+    [2-byte Tag ID]  [String representation of a tag]    [\0]
+
+  - Grammar rule table structure:
+    |   0   |   1   |   2   |   3    |  4  | . . |  i  | . . .  |  j  | . . |  k  | k+1 |
+    [2-byte Tag ID]  [No. of options]  [Option]   [\0]   . . .   [Option]    [\0]  [\0]
+
+    - [2-byte Tag ID]:  The ID of a tag this rule defines.
+    - [No. of options]: The number of available definition options (in eBNF, separated by |).
+    - [Option]:         gBNF-defined language option. Options are separated by \0.
+
+  - gBNF language option definition:
+      Similar to eBNF, but format is different. Elements have their Types, which are represented as a
+      single special ASCII character. These characters need to be escaped if used anywhere else.
+
+      These characters are: ? * + " < \
+
+    - (? * +) The Group repetition specifier. The wildcards are presented before the group.
+      Then follows the 2-byte size of the group (number of elements): e.g.:
+
+      ?89...   (? is a wildcard, 89 are 2 bytes representing the number of elements,
+                  and then follows the elements)
+
+    - ( " ) The raw text to be matched in regex-like format. The size of the string is
+      a 2-byte word after the ", e.g.:
+
+      "89[_a-zA-Z]
+
+    - ( < ) The tag format: <[byte-1][byte-2], e.g.:
+
+      <89  (8 and 9 are not numbers, but ASCII chars with values representing lower and higher bytes).
+
+    - Some chars need to be escaped. That's why we use the \ to escape them.
+      E.g. when ascii value of one of bytes representing size if equal to '\', it needs to
+      be escaped with another '\', so written like '\\'.
+
