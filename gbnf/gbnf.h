@@ -139,6 +139,7 @@ class Tools{
         /*! Function uses the EBNF format input from the 'input' stream to fill up the 'data' structure. 
          * @param data - the empty GBNF structure to fill up.
          * @param input - the input stream to read from.
+         * @throws runtime_error if fatal error occured.
          */ 
         static void convertToGbnf(GbnfData& data, std::istream& input) const;
 
@@ -147,9 +148,10 @@ class Tools{
          *  @param data - the structure holding the data to move to the file
          *  @param variableName - the name of the const struct to use in that file.
          *  @param output - the output stream to write to. Most likely a file stream.
+         *  @throws runtime_error if fatal error occured.
          */ 
         static void makeCHeaderFile(const GbnfData& data, const char* variableName, std::ostream& output) const; 
-}
+};
 
 }
 
