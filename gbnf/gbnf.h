@@ -119,7 +119,7 @@ struct GrammarRule{
  */ 
 struct GbnfData{
     uint16_t flags;
-    std::vector<NonTerminal> tagTable;
+    std::set<NonTerminal> tagTable; //TODO: use std::set
     std::vector<GrammarRule> grammarTable;
 };
 

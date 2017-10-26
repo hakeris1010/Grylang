@@ -10,13 +10,42 @@
 
 namespace gbnf{
 
+struct ParseInput{
+    std::istream& input;
+    GbnfData& data;
+    int lineNum = 0;
+    int posInLine = 0;
+    short lastTagID = 0;
+
+    ParseInput( std::istream& is, GbnfData& dat ) : input( is ), data( dat ) {}
+};
+
+/*! Function used to simplify the exception throwing.
+ */ 
+static inline void throwError(const ParseInput& inp, const char* message){
+    throw std::runtime_error( "["+std::to_string(inp.lineNum)+":"+std::to_string(inp.posInLine)+"]"+ message );
+}
+
+static short getTagId( const ParseInput& inp, const std::string& name ){
+    // TODO: Use sorted lists  
+}
+
+// this one is recursive
+static void fillGrammarToken( ParseInput& inp, GrammarToken& tok ){
+
+}
+
+static void fillGrammarRule( ParseInput& inp, GrammarRule& rule ){
+
+}
+
 // Convert EBNF to GBNF.
 void Tools::convertToGbnf(GbnfData& data, std::istream& input){
     // Automaton States represented as Enum
-    const enum States { None, Comment, DefTagStart, DefTag, DefAssColon, DefAssEquals, };
+    const enum States { None, Comment, DefTag, DefAssignment, DefAssEquals, };
 
-    int lineNum = 0;
-    int posInLine = 0;
+    ParseInput pinput( input );
+
     std::string data;
     std::string nextChars;
 
@@ -37,17 +66,15 @@ void Tools::convertToGbnf(GbnfData& data, std::istream& input){
             break;
         }
 
-
         // We've read the next character. Now procceed with the state examination.
         switch(st){
         case None:
             if(c == '#') // Comment started
                 st = Comment;
             else if(c == '<') // Definition tag-to-be-defined start.
-                st = DefTagStart;
+                st = DefTag;
             else if( !std::isspace(static_cast<unsigned char>( c )) ) // If not whitespace, error.
-                throw std::runtime_error( "["+std::to_string(lineNum)+":"+std::to_string(posInLine)+"]"+ \
-                                          " : Wrong start symbol!" );
+                throwError(pinput, " : Wrong start symbol!" );
             break; // If whitespace, just stay on 'None' state.
             
         case Comment:
@@ -55,11 +82,22 @@ void Tools::convertToGbnf(GbnfData& data, std::istream& input){
                 st = None;
             break; // If any other char, still on comment.
 
-        case DefTagStart:
+        case DefTag:
             // Only [a-zA-Z_] are allowed on tags. Also, tag must consist of 1 or more of these chars.
-            if( !std::isalnum( static_cast<unsigned char>(c) ) && c != '_') 
+            if(c == '>'){ // TagEnd
+                if(data.empty())
+                    throwError(pinput, " : Tag is Empty!" );
+                // Actual tag has been identified. Do jobs.
+                std::cout<<"Tag found! "<<data;
+
+                st = DefAssignment // Now expect the assignment operator (::==, ::=).
+                break; 
+            }
+            else if( !std::isalnum( static_cast<unsigned char>(c) ) && c != '_') 
                 throw std::runtime_error( "["+std::to_string(lineNum)+":"+std::to_string(posInLine)+"]"+ \
                                           " : Wrong characters on tag!" );
+            // Add the char read to the data string, because useful data starts now.
+            data += c;
 
         }
 
