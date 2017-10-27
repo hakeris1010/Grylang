@@ -26,8 +26,19 @@ static inline void throwError(const ParseInput& inp, const char* message){
     throw std::runtime_error( "["+std::to_string(inp.lineNum)+":"+std::to_string(inp.posInLine)+"]"+ message );
 }
 
-static short getTagId( const ParseInput& inp, const std::string& name ){
-    // TODO: Use sorted lists  
+static short getTagId( ParseInput& inp, const std::string& name, bool insertIfNotPresent ){
+    // Search by iteration, because we can't search for string sorted.
+    for(auto t : inp.data.tagTable){
+        if(t.data == name)
+            return t.ID;
+    }
+    // If reached this point, element not found. Insert new NonTerminal Tag if flag specified.
+    if(insertIfNotPresent){
+        inp.data.tagTable.insert( NonTerminal( inp.lastTagID+1, name ) );
+        inp.lastTagID++;
+        return inp.lastTagID;
+    }
+    return -1;
 }
 
 // this one is recursive

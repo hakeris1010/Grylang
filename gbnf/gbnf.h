@@ -119,39 +119,32 @@ struct GrammarRule{
  */ 
 struct GbnfData{
     uint16_t flags;
-    std::set<NonTerminal> tagTable; //TODO: use std::set
+    std::set<NonTerminal, std::function<bool (NonTerminal, NonTerminal)>> tagTable; //TODO: use std::set
     std::vector<GrammarRule> grammarTable;
+
+    GbnfData() : tagTable ( [](NonTerminal a, NonTerminal b){ return a.ID < b.ID; } ) {}
 };
 
-/*! Tools class - Converters and Helpers
+/*! Tools - Converters and Helpers
  *  Contains functions to use when converting to/from EBNF and parsing data.
  *  No matching is done there. Only conversion to/from the gBNF format.
  */
-class Tools{
-    private:
-        Tools() = delete;
-        Tools(const Tools&) = delete;
-        Tools(Tools&&) = delete;
-        Tools& operator=(const Tools&) = delete;
-        Tools& operator=(Tools&&) = delete;
 
-    public:
-        /*! Function uses the EBNF format input from the 'input' stream to fill up the 'data' structure. 
-         * @param data - the empty GBNF structure to fill up.
-         * @param input - the input stream to read from.
-         * @throws runtime_error if fatal error occured.
-         */ 
-        static void convertToGbnf(GbnfData& data, std::istream& input) const;
+/*! Function uses the EBNF format input from the 'input' stream to fill up the 'data' structure. 
+ * @param data - the empty GBNF structure to fill up.
+ * @param input - the input stream to read from.
+ * @throws runtime_error if fatal error occured.
+ */ 
+void convertToGbnf(GbnfData& data, std::istream& input);
 
-        /*! Function makes a C/C++ header file containing a const GbnfData structure which contains
-         *  the gBNF data from the 'data' structure.
-         *  @param data - the structure holding the data to move to the file
-         *  @param variableName - the name of the const struct to use in that file.
-         *  @param output - the output stream to write to. Most likely a file stream.
-         *  @throws runtime_error if fatal error occured.
-         */ 
-        static void makeCHeaderFile(const GbnfData& data, const char* variableName, std::ostream& output) const; 
-};
+/*! Function makes a C/C++ header file containing a const GbnfData structure which contains
+ *  the gBNF data from the 'data' structure.
+ *  @param data - the structure holding the data to move to the file
+ *  @param variableName - the name of the const struct to use in that file.
+ *  @param output - the output stream to write to. Most likely a file stream.
+ *  @throws runtime_error if fatal error occured.
+ */ 
+void makeCHeaderFile(const GbnfData& data, const char* variableName, std::ostream& output); 
 
 }
 
