@@ -10,61 +10,110 @@
 
 namespace gbnf{
 
-struct ParseInput{
-    std::istream& input;
+class ParseInput{
+private:
+    std::istream& input; // Notice these are REFERENCES.
     GbnfData& data;
+
     int lineNum = 0;
     int posInLine = 0;
     short lastTagID = 0;
 
+    std::string nextChars;
+    std::string tempData;
+
+    inline void throwError(const char* message) const;
+    inline bool getNextString( std::string& str, size_t len=1 );
+
+    short getTagId( const std::string& name, bool insertIfNotPresent );
+    void fillGrammarToken( GrammarToken& tok );
+    void fillGrammarRule( GrammarRule& rule );
+ 
+public:
     ParseInput( std::istream& is, GbnfData& dat ) : input( is ), data( dat ) {}
+
+    void convert();
 };
 
 /*! Function used to simplify the exception throwing.
  */ 
-static inline void throwError(const ParseInput& inp, const char* message){
-    throw std::runtime_error( "["+std::to_string(inp.lineNum)+":"+std::to_string(inp.posInLine)+"]"+ message );
+inline void ParseInput::throwError(const char* message){
+    throw std::runtime_error( "["+std::to_string(lineNum)+":"+std::to_string(posInLine)+"]"+ message );
 }
 
-static short getTagId( ParseInput& inp, const std::string& name, bool insertIfNotPresent ){
+/*! Can be used to find NonTerminal tag's ID from it's name, 
+ *  or to insert into a table a new NonTerminal with name = name. ID ass'd automatically.
+ */ 
+short ParseInput::getTagId( const std::string& name, bool insertIfNotPresent ){
     // Search by iteration, because we can't search for string sorted.
-    for(auto t : inp.data.tagTable){
+    for(auto t : data.tagTable){
         if(t.data == name)
             return t.ID;
     }
     // If reached this point, element not found. Insert new NonTerminal Tag if flag specified.
     if(insertIfNotPresent){
-        inp.data.tagTable.insert( NonTerminal( inp.lastTagID+1, name ) );
-        inp.lastTagID++;
-        return inp.lastTagID;
+        data.tagTable.insert( NonTerminal( lastTagID+1, name ) );
+        lastTagID++;
+        return lastTagID;
     }
     return -1;
 }
 
-// this one is recursive
-static void fillGrammarToken( ParseInput& inp, GrammarToken& tok ){
-
+/*! Gets the string of len chars from the input stream or the to-read nextChars buffer.
+ *  Also updates all states, and returns false if can't read anything.
+ */ 
+inline bool ParseInput::getNextString( std::string& str, size_t len ){
+    str.reserve(len);
+    if( !nextChars.empty() ){
+        // Read len chars from nextChars, and if len > nextChars.size(), read only until the end.
+        str.assign( nextChars, 0, len );
+        if(str.size() >= len)
+            return true;
+    }
+    if( !input.eof() ) // Not yet EOF'd.
+        input.read( &(str[ str.size() ]),  ;
+    }
+    else{ // input EOF'd, and no chars on nextChar buffer - exit the loop depending on the state.
+        // Do end jobs and break IF STATES ARE GOOD.
+        break;
+    }
 }
 
-static void fillGrammarRule( ParseInput& inp, GrammarRule& rule ){
+inline bool ParseInput::getNextChar( char& c ){
+    // Read the next character. It can be a char from a to-read buffer or a char from file.
+    if( !nextChars.empty() ){
+        c = nextChars[0];
+        nextChars.erase(0, 1);
+    }
+    else if( !input.eof() ) // Not yet EOF'd.
+        input >> c;
+    }
+    else // input EOF'd, and no chars on nextChar buffer - return that no more to read.
+        return false;
+    return true;
+}
 
+// this one is recursive
+void ParseInput::fillGrammarToken( GrammarToken& tok ){
+    
+}
+
+/*! Must start reading at the position of Tag Start ('<').
+ */ 
+void ParseInput::fillGrammarRule( GrammarRule& rule ){
+    
 }
 
 // Convert EBNF to GBNF.
-void Tools::convertToGbnf(GbnfData& data, std::istream& input){
+void ParseInput::convert(){
     // Automaton States represented as Enum
     const enum States { None, Comment, DefTag, DefAssignment, DefAssEquals, };
-
-    ParseInput pinput( input );
-
-    std::string data;
-    std::string nextChars;
 
     States st = None;
     char c;
 
     while( true ){
-        // Read the next character. It can be a char from buffer of chars to read next or a char from file.
+        // Read the next character. It can be a char from a to-read buffer or a char from file.
         if( !nextChars.empty() ){
             c = nextChars[0];
             nextChars.erase(0, 1);
@@ -125,7 +174,13 @@ void Tools::convertToGbnf(GbnfData& data, std::istream& input){
 
 }
 
-void Tools::makeCHeaderFile(const GbnfData& data, const char* variableName, std::ostream& output){
+/*! Public functions, called from outside o' this phile.
+ */ 
+void convertToGbnf(GbnfData& data, std::istream& input){
+
+}
+
+void makeCHeaderFile(const GbnfData& data, const char* variableName, std::ostream& output){
 
 }
 
