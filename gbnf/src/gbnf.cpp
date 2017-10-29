@@ -63,6 +63,7 @@ short ParseInput::getTagId( const std::string& name, bool insertIfNotPresent ){
  *  Also updates all states, and returns false if can't read anything.
  */ 
 inline bool ParseInput::getNextString( std::string& str, size_t len ){
+    str.clear();
     str.reserve(len);
     if( !nextChars.empty() ){
         // Read len chars from nextChars, and if len > nextChars.size(), read only until the end.
@@ -71,14 +72,18 @@ inline bool ParseInput::getNextString( std::string& str, size_t len ){
             return true;
     }
     if( !input.eof() ) // Not yet EOF'd.
-        input.read( &(str[ str.size() ]),  ;
+        char tmp[ len - str.size() ];
+        input.read( tmp, sizeof(tmp) );
+        str.insert( str.size(), tmp, sizeof(tmp) );
+        return true;
     }
-    else{ // input EOF'd, and no chars on nextChar buffer - exit the loop depending on the state.
-        // Do end jobs and break IF STATES ARE GOOD.
-        break;
-    }
+    // input EOF'd, and no chars on nextChar buffer - exit the loop depending on the state.
+    return false;
+
 }
 
+/*! Just simplified stuff of getting the n3xtcha4r.
+ */ 
 inline bool ParseInput::getNextChar( char& c ){
     // Read the next character. It can be a char from a to-read buffer or a char from file.
     if( !nextChars.empty() ){
