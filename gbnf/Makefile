@@ -8,7 +8,9 @@ CXXFLAGS= -std=c++11
 LDFLAGS= 
 
 DEBUG_CXXFLAGS= -g
+DEBUG_LDFLAGS= 
 RELEASE_CXXFLAGS= -O2
+RELEASE_LDFLAGS=
 
 TESTDIR= ./bin/test
 LIBDIR= ./lib
@@ -25,11 +27,16 @@ ZSH_RESULT:=$(shell mkdir -p $(TESTDIR) $(LIBDIR) $(BINDIR_RELEASE) $(BINDIR_DEB
 
 #====================================#
 
+#----- GrylTools Includes/Libs --#
+
+INCLUDE_GRYLTOOLS= -I../gryltools/include
+LIBCLUDE_GRYLTOOLS= -L../gryltools/lib
+
 #----- GBNF Sources/Libs ----#
 
-GBNF= gbnf
+GBNF= gbnf 
 SOURCES_GBNF= src/gbnf.cpp src/gbnfprogram.cpp 
-LIBS_GBNF= 
+LIBS_GBNF= gryltools.a
 
 #--------- Test sources ---------#
 
@@ -43,8 +50,10 @@ TESTNAME= $(TEST1)
 
 #====================================#
 
-DEBUG_INCLUDES= 
-RELEASE_INCLUDES= 
+DEBUG_INCLUDES= $(INCLUDE_GRYLTOOLS)
+DEBUG_LIBCLUDES= $(LIBCLUDE_GRYLTOOLS)
+RELEASE_INCLUDES= $(INCLUDE_GRYLTOOLS)
+RELEASE_LIBCLUDES= $(LIBCLUDE_GRYLTOOLS)
 
 BINPREFIX= 
 
@@ -57,16 +66,18 @@ release: relops $(GBNF) $(TESTNAME)
 
 debops: 
 	$(eval CXXFLAGS += $(DEBUG_CXXFLAGS) $(DEBUG_INCLUDES))
+	#$(eval LDFLAGS += $(DEBUG_LDFLAGS) $(DEBUG_LIBCLUDES))
 	$(eval BINPREFIX = $(BINDIR_DEBUG)) 
 
 relops: 
 	$(eval CXXFLAGS += $(RELEASE_CXXFLAGS) $(RELEASE_INCLUDES)) 
+	#$(eval LDFLAGS += $(RELEASE_LDFLAGS) $(RELEASE_LIBCLUDES)) 
 	$(eval BINPREFIX = $(BINDIR_RELEASE)) 
 
 .cpp.o:
 	$(CXX) $(CXXFLAGS) -c $*.cpp -o $*.o
 
-$(GBNF): $(SOURCES_GBNF:.cpp=.o) $(LIBS_GBNF)
+$(GBNF): $(SOURCES_GBNF:.cpp=.o) 
 	$(CXX) -o $(BINPREFIX)/$@ $^ $(LDFLAGS)
 $(GBNF)_debug: debops $(GBNF)    
 

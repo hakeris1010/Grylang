@@ -72,6 +72,7 @@
 #include <vector>
 #include <cstdint>
 #include <istream>
+#include <ostream>
 
 namespace gbnf{
 
@@ -122,11 +123,12 @@ struct GrammarRule{
  *  This is the structure which holds the whole grammar which is being worked with.
  */ 
 struct GbnfData{
-    uint16_t flags;
+    uint16_t flags = 0;
     std::set<NonTerminal, std::function<bool (NonTerminal, NonTerminal)>> tagTable; 
     std::vector<GrammarRule> grammarTable;
 
     GbnfData() : tagTable ( [](NonTerminal a, NonTerminal b){ return a.ID < b.ID; } ) {}
+    void print( std::ostream& os );
 };
 
 /*! Tools - Converters and Helpers

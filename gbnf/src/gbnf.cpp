@@ -257,11 +257,21 @@ void ParseInput::convert(){
 /*! Public functions, called from outside o' this phile.
  */ 
 void convertToGbnf(GbnfData& data, std::istream& input){
-
+    ParseInput pi( input, data );
+    pi.convert();
 }
 
 void makeCHeaderFile(const GbnfData& data, const char* variableName, std::ostream& output){
 
+}
+
+/*! Prints the GBNF Data to stream passed.
+ */
+void GbnfData::print( std::ostream& os ){
+    os<<"GBNFData in 0x"<<this<<"\n Flags:"<<flags<<"\n TagTable:\n ";
+    for(auto a : tagTable)
+        os<<" ["<<a.ID<<"]: "<<a.data<<"\n";
+    os<<"\nGrammarTable: "<<grammarTable.size()<<" entries.\n";
 }
 
 }
