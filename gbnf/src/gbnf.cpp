@@ -6,6 +6,7 @@
  */ 
 
 #include <cctype>
+#include <string>
 #include <iostream>
 #include <algorithm>
 #include "gbnf.h"
@@ -27,10 +28,14 @@ private:
     inline void throwError(const char* message) const;
     inline bool getNextString( std::string& str, size_t len=1 );
     inline bool getNextChar( char& c );
+    inline void skipWhitespace();
+    inline void updateLineStats( const std::string& str );
 
     short getTagIDfromTable( const std::string& name, bool insertIfNotPresent );
-    void fillGrammarToken( GrammarToken& tok );
-    void fillGrammarRule( GrammarRule& rule );
+    void getTagName( std::string& str );
+    bool parseGrammarToken( GrammarToken& tok );
+    bool parseGrammarOption( GrammarToken& tok );
+    void parseGrammarRule( GrammarRule& rule );
  
 public:
     ParseInput( std::istream& is, GbnfData& dat ) : input( is ), data( dat ) {}
@@ -62,15 +67,27 @@ short ParseInput::getTagIDfromTable( const std::string& name, bool insertIfNotPr
     return -1;
 }
 
-inline void ParseInput::updateLineStats( const std::string& str ) const {
+inline void ParseInput::updateLineStats( const std::string& str ) {
     size_t count = std::count( str.begin(), str.end(), '\n' );
     size_t pos = 0, lastPos = 0;
-    while( (pos = str.find('\n', lastPos)) != string::npos ){
+    while( (pos = str.find('\n', lastPos)) != std::string::npos ){
         this->lineNum++;
         this->posInLine = 0;
         lastPos = pos;
     }
     this->posInLine += str.size()-1 - lastPos;
+}
+
+inline void ParseInput::skipWhitespace() {
+    while( !nextChars.empty() ){
+        if( std::isspace( nextChars[0] ) )
+            nextChars.erase(0, 1);
+        else 
+            break;
+    }
+    if( nextChars.empty() ){
+        input >> std::ws; // Skip whaitspaces.
+    }
 }
 
 /*! Gets the string of len chars from the input stream or the to-read nextChars buffer.
@@ -126,7 +143,7 @@ inline bool ParseInput::getNextChar( char& c ){
 
 /*! Gets the name of the tag at current position. Can start with a '<' or a tag-compatibru letter.
  */ 
-void getTagName( std::string& str ){
+void ParseInput::getTagName( std::string& str ){
     char c = 0;
     if(getNextChar(c)){
         if(c != '<') // Ignore the '<'. If char is not a '<', add it to nexttoreads.
@@ -134,27 +151,62 @@ void getTagName( std::string& str ){
     }
 
     while( getNextChar(c) ){
+        if( c == '>' ){ // End
+            if( str.empty() )
+                throwError( "Tag is empty!" );
+            break; // if string is not empty, break and return good.    
+        }
         // Tag chars: [a-zA-Z_]
-        if( !std::isalnum( static_cast<unsigned char>(c) ) && c != '_' ) 
+        else if( !std::isalnum( static_cast<unsigned char>(c) ) && c != '_' ){
             throwError( "Wrong character in a tag!" );
+        }
         str += c;
     }
 }
 
 // this one is recursive
-void ParseInput::fillGrammarToken( GrammarToken& tok ){
-    
+bool ParseInput::parseGrammarToken( GrammarToken& tok ){
+    return true;
 }
 
-/*! Must start reading at the position of Tag Start ('<').
+bool ParseInput::parseGrammarOption( GrammarToken& tok ){
+    tok.type = GrammarToken::ROOT_TOKEN;
+    tok.id = 1337;
+    tok.size = 0;
+    tok.data = "Nyaa~";
+}
+
+/*! Parse the grammar rule definition. 
+ *  Must start reading at the position of Tag Start ('<').
+ *  @param rule - the rule structure to parse data into.
  */ 
-void ParseInput::fillGrammarRule( GrammarRule& rule ){
+void ParseInput::parseGrammarRule( GrammarRule& rule ){
     std::string tmp;
     tmp.reserve(256);
     
+    // Get the first tag (the NonTerminal this rule defines), and it's ID.
     getTagName( tmp );
-
     rule.ID = getTagIDfromTable( tmp, true ); // Add to table if not present.
+
+    // Get the definition-assignment operator (::==, ::=, :==, :=).
+    skipWhitespace();
+    getNextString(tmp, 4);
+
+    if( !tmp.compare(0, 4, "::==") ) 
+        {}
+    else if( !tmp.compare(0, 3, "::=") || !tmp.compare(0, 3, ":==") )
+        nextChars.insert(0, 1, tmp[3]);
+    else if( !tmp.compare(0, 2, ":=") )
+        nextChars.insert(0, tmp.substr(2)); // Insert a substring of tmp, starting at pos=2
+    else
+        throwError("No Def-Assignment operator on a rule");
+
+    // Get options (ROOT type tokens), one by one, in a loop
+    GrammarToken tok;
+    while( parseGrammarOption( tok ) ){
+        rule.options.push_back(tok);
+    }
+    // We've parsed a rule. All options are parsed.
 }
 
 // Convert EBNF to GBNF.
@@ -176,7 +228,7 @@ void ParseInput::convert(){
         else if(c == '<'){ // Rule start. Get the rule and put into the table.
             nextChars += c;
             data.grammarTable.push_back( GrammarRule() );
-            fillGrammarRule( data.grammarTable[ data.grammarTable.size()-1 ] );
+            parseGrammarRule( data.grammarTable[ data.grammarTable.size()-1 ] );
         }
         else if( !std::isspace(static_cast<unsigned char>( c )) ) // If not whitespace, error.
             throwError(" : Wrong start symbol!" );
