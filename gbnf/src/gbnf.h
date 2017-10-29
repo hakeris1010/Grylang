@@ -67,6 +67,8 @@
 #define GBNF_H_INCLUDED
 
 #include <string>
+#include <set>
+#include <functional>
 #include <vector>
 #include <cstdint>
 #include <istream>
@@ -81,6 +83,8 @@ namespace gbnf{
 struct NonTerminal{
     short ID;
     std::string data;
+
+    NonTerminal( short _ID, const std::string& _data ) : ID( _ID ), data( _data ) {}
 };
 
 /*! Token structure.
@@ -119,7 +123,7 @@ struct GrammarRule{
  */ 
 struct GbnfData{
     uint16_t flags;
-    std::set<NonTerminal, std::function<bool (NonTerminal, NonTerminal)>> tagTable; //TODO: use std::set
+    std::set<NonTerminal, std::function<bool (NonTerminal, NonTerminal)>> tagTable; 
     std::vector<GrammarRule> grammarTable;
 
     GbnfData() : tagTable ( [](NonTerminal a, NonTerminal b){ return a.ID < b.ID; } ) {}

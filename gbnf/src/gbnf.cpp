@@ -6,6 +6,8 @@
  */ 
 
 #include <cctype>
+#include <iostream>
+#include <algorithm>
 #include "gbnf.h"
 
 namespace gbnf{
@@ -24,8 +26,9 @@ private:
 
     inline void throwError(const char* message) const;
     inline bool getNextString( std::string& str, size_t len=1 );
+    inline bool getNextChar( char& c );
 
-    short getTagId( const std::string& name, bool insertIfNotPresent );
+    short getTagIDfromTable( const std::string& name, bool insertIfNotPresent );
     void fillGrammarToken( GrammarToken& tok );
     void fillGrammarRule( GrammarRule& rule );
  
@@ -37,14 +40,14 @@ public:
 
 /*! Function used to simplify the exception throwing.
  */ 
-inline void ParseInput::throwError(const char* message){
+inline void ParseInput::throwError(const char* message) const {
     throw std::runtime_error( "["+std::to_string(lineNum)+":"+std::to_string(posInLine)+"]"+ message );
 }
 
 /*! Can be used to find NonTerminal tag's ID from it's name, 
  *  or to insert into a table a new NonTerminal with name = name. ID ass'd automatically.
  */ 
-short ParseInput::getTagId( const std::string& name, bool insertIfNotPresent ){
+short ParseInput::getTagIDfromTable( const std::string& name, bool insertIfNotPresent ){
     // Search by iteration, because we can't search for string sorted.
     for(auto t : data.tagTable){
         if(t.data == name)
@@ -59,6 +62,17 @@ short ParseInput::getTagId( const std::string& name, bool insertIfNotPresent ){
     return -1;
 }
 
+inline void ParseInput::updateLineStats( const std::string& str ) const {
+    size_t count = std::count( str.begin(), str.end(), '\n' );
+    size_t pos = 0, lastPos = 0;
+    while( (pos = str.find('\n', lastPos)) != string::npos ){
+        this->lineNum++;
+        this->posInLine = 0;
+        lastPos = pos;
+    }
+    this->posInLine += str.size()-1 - lastPos;
+}
+
 /*! Gets the string of len chars from the input stream or the to-read nextChars buffer.
  *  Also updates all states, and returns false if can't read anything.
  */ 
@@ -68,18 +82,21 @@ inline bool ParseInput::getNextString( std::string& str, size_t len ){
     if( !nextChars.empty() ){
         // Read len chars from nextChars, and if len > nextChars.size(), read only until the end.
         str.assign( nextChars, 0, len );
-        if(str.size() >= len)
+        if(str.size() >= len){
+            updateLineStats( str );
             return true;
+        }
     }
-    if( !input.eof() ) // Not yet EOF'd.
+    if( !input.eof() ){ // Not yet EOF'd.
         char tmp[ len - str.size() ];
         input.read( tmp, sizeof(tmp) );
         str.insert( str.size(), tmp, sizeof(tmp) );
+
+        updateLineStats( str );
         return true;
     }
     // input EOF'd, and no chars on nextChar buffer - exit the loop depending on the state.
     return false;
-
 }
 
 /*! Just simplified stuff of getting the n3xtcha4r.
@@ -90,12 +107,38 @@ inline bool ParseInput::getNextChar( char& c ){
         c = nextChars[0];
         nextChars.erase(0, 1);
     }
-    else if( !input.eof() ) // Not yet EOF'd.
+    else if( !input.eof() ){ // Not yet EOF'd.
         input >> c;
     }
     else // input EOF'd, and no chars on nextChar buffer - return that no more to read.
         return false;
+
+    // Reset line counters if on endline.
+    if(c == '\n'){
+        this->lineNum++;
+        this->posInLine = 0;
+    }
+    else
+        this->posInLine++;
+
     return true;
+}
+
+/*! Gets the name of the tag at current position. Can start with a '<' or a tag-compatibru letter.
+ */ 
+void getTagName( std::string& str ){
+    char c = 0;
+    if(getNextChar(c)){
+        if(c != '<') // Ignore the '<'. If char is not a '<', add it to nexttoreads.
+            nextChars.insert(0, 1, c);
+    }
+
+    while( getNextChar(c) ){
+        // Tag chars: [a-zA-Z_]
+        if( !std::isalnum( static_cast<unsigned char>(c) ) && c != '_' ) 
+            throwError( "Wrong character in a tag!" );
+        str += c;
+    }
 }
 
 // this one is recursive
@@ -106,77 +149,57 @@ void ParseInput::fillGrammarToken( GrammarToken& tok ){
 /*! Must start reading at the position of Tag Start ('<').
  */ 
 void ParseInput::fillGrammarRule( GrammarRule& rule ){
+    std::string tmp;
+    tmp.reserve(256);
     
+    getTagName( tmp );
+
+    rule.ID = getTagIDfromTable( tmp, true ); // Add to table if not present.
 }
 
 // Convert EBNF to GBNF.
 void ParseInput::convert(){
     // Automaton States represented as Enum
-    const enum States { None, Comment, DefTag, DefAssignment, DefAssEquals, };
+    enum States { None, Comment, DefTag, DefAssignment, DefAssEquals };
 
     States st = None;
     char c;
 
     while( true ){
-        // Read the next character. It can be a char from a to-read buffer or a char from file.
-        if( !nextChars.empty() ){
-            c = nextChars[0];
-            nextChars.erase(0, 1);
-        }
-        else if( !input.eof() ) // Not yet EOF'd.
-            input >> c;
-        }
-        else{ // input EOF'd, and no chars on nextChar buffer - exit the loop depending on the state.
-            // Do end jobs and break IF STATES ARE GOOD.
+        if( !getNextChar( c ) )
             break;
-        }
 
-        // We've read the next character. Now procceed with the state examination.
-        switch(st){
-        case None:
-            if(c == '#') // Comment started
-                st = Comment;
-            else if(c == '<') // Definition tag-to-be-defined start.
-                st = DefTag;
-            else if( !std::isspace(static_cast<unsigned char>( c )) ) // If not whitespace, error.
-                throwError(pinput, " : Wrong start symbol!" );
-            break; // If whitespace, just stay on 'None' state.
-            
-        case Comment:
-            if(c == '\n') // If EndLine reached, comment ends (we've only 1-line hashtag comments).
-                st = None;
-            break; // If any other char, still on comment.
-
-        case DefTag:
-            // Only [a-zA-Z_] are allowed on tags. Also, tag must consist of 1 or more of these chars.
-            if(c == '>'){ // TagEnd
-                if(data.empty())
-                    throwError(pinput, " : Tag is Empty!" );
-                // Actual tag has been identified. Do jobs.
-                std::cout<<"Tag found! "<<data;
-
-                st = DefAssignment // Now expect the assignment operator (::==, ::=).
-                break; 
-            }
-            else if( !std::isalnum( static_cast<unsigned char>(c) ) && c != '_') 
-                throw std::runtime_error( "["+std::to_string(lineNum)+":"+std::to_string(posInLine)+"]"+ \
-                                          " : Wrong characters on tag!" );
-            // Add the char read to the data string, because useful data starts now.
-            data += c;
-
-        }
-
-        // Reset line counters if on endline.
-        if(c == '\n'){
+        if(c == '#'){ // Comment start
+            input.ignore(9000, '\n'); // Ignore chars until the endline, or Over 9000 of them are read.
             lineNum++;
-            posInLine = 0;
         }
-        else
-            posInLine++;
-
-
+        else if(c == '<'){ // Rule start. Get the rule and put into the table.
+            nextChars += c;
+            data.grammarTable.push_back( GrammarRule() );
+            fillGrammarRule( data.grammarTable[ data.grammarTable.size()-1 ] );
+        }
+        else if( !std::isspace(static_cast<unsigned char>( c )) ) // If not whitespace, error.
+            throwError(" : Wrong start symbol!" );
     }
+        // If whitespace, just continue on 'None' state.
 
+       /*case DefTag:
+        // Only [a-zA-Z_] are allowed on tags. Also, tag must consist of 1 or more of these chars.
+        if(c == '>'){ // TagEnd
+            if(tempData.empty())
+                throwError(" : Tag is Empty!" );
+            // Actual tag has been identified. Do jobs.
+            std::cout<<"Tag found! "<<tempData;
+
+            st = DefAssignment; // Now expect the assignment operator (::==, ::=).
+            break; 
+        }
+        else if( !std::isalnum( static_cast<unsigned char>(c) ) && c != '_') 
+            throw std::runtime_error( "["+std::to_string(lineNum)+":"+std::to_string(posInLine)+"]"+ \
+                                      " : Wrong characters on tag!" );
+        // Add the char read to the data string, because useful data starts now.
+        tempData += c;
+        */
 }
 
 /*! Public functions, called from outside o' this phile.
