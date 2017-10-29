@@ -9,6 +9,7 @@
 #include <string>
 #include <iostream>
 #include <algorithm>
+#include <gryltools/hlog.h>
 #include "gbnf.h"
 
 namespace gbnf{
@@ -183,6 +184,8 @@ bool ParseInput::parseGrammarOption( GrammarToken& tok ){
 void ParseInput::parseGrammarRule( GrammarRule& rule ){
     std::string tmp;
     tmp.reserve(256);
+
+    std::cout<<"Getting TagName\n";
     
     // Get the first tag (the NonTerminal this rule defines), and it's ID.
     getTagName( tmp );
@@ -205,6 +208,8 @@ void ParseInput::parseGrammarRule( GrammarRule& rule ){
     GrammarToken tok;
     while( parseGrammarOption( tok ) ){
         rule.options.push_back(tok);
+
+        std::cout<<"Got Token: "<<tok.id<<", "<<tok.data<<"\n";
     }
     // We've parsed a rule. All options are parsed.
 }
@@ -227,31 +232,15 @@ void ParseInput::convert(){
         }
         else if(c == '<'){ // Rule start. Get the rule and put into the table.
             nextChars += c;
+            
+            std::cout<<"Getting next grammarrule\n";
+
             data.grammarTable.push_back( GrammarRule() );
             parseGrammarRule( data.grammarTable[ data.grammarTable.size()-1 ] );
         }
         else if( !std::isspace(static_cast<unsigned char>( c )) ) // If not whitespace, error.
             throwError(" : Wrong start symbol!" );
     }
-        // If whitespace, just continue on 'None' state.
-
-       /*case DefTag:
-        // Only [a-zA-Z_] are allowed on tags. Also, tag must consist of 1 or more of these chars.
-        if(c == '>'){ // TagEnd
-            if(tempData.empty())
-                throwError(" : Tag is Empty!" );
-            // Actual tag has been identified. Do jobs.
-            std::cout<<"Tag found! "<<tempData;
-
-            st = DefAssignment; // Now expect the assignment operator (::==, ::=).
-            break; 
-        }
-        else if( !std::isalnum( static_cast<unsigned char>(c) ) && c != '_') 
-            throw std::runtime_error( "["+std::to_string(lineNum)+":"+std::to_string(posInLine)+"]"+ \
-                                      " : Wrong characters on tag!" );
-        // Add the char read to the data string, because useful data starts now.
-        tempData += c;
-        */
 }
 
 /*! Public functions, called from outside o' this phile.

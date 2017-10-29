@@ -8,9 +8,7 @@ CXXFLAGS= -std=c++11
 LDFLAGS= 
 
 DEBUG_CXXFLAGS= -g
-DEBUG_LDFLAGS= 
 RELEASE_CXXFLAGS= -O2
-RELEASE_LDFLAGS=
 
 TESTDIR= ./bin/test
 LIBDIR= ./lib
@@ -24,24 +22,23 @@ BINDIR_DEBUG= $(BINDIR)/debug
 #set directories
 ZSH_RESULT:=$(shell mkdir -p $(TESTDIR) $(LIBDIR) $(BINDIR_RELEASE) $(BINDIR_DEBUG) $(INCLUDEDIR))
 
-
 #====================================#
 
-#----- GrylTools Includes/Libs --#
+#- GrylTools Libs/Includes --#
 
-INCLUDE_GRYLTOOLS= -I../gryltools/include
-LIBCLUDE_GRYLTOOLS= -L../gryltools/lib
+GRYLTOOLS_INCLUDE= -I../gryltools/include
+GRYLTOOLS_LIBCLUDE= -L../gryltools/lib
 
 #----- GBNF Sources/Libs ----#
 
-GBNF= gbnf 
+GBNF= gbnf
 SOURCES_GBNF= src/gbnf.cpp src/gbnfprogram.cpp 
-LIBS_GBNF= gryltools.a
+LIBS_GBNF= -lgryltools
 
 #--------- Test sources ---------#
 
 SOURCES_TEST1= src/test/test1.cpp 
-LIBS_TEST1= 
+LIBS_TEST1= -lgryltools
 TEST1= $(TESTDIR)/test1
 
 #---------  Test  list  ---------# 
@@ -50,12 +47,15 @@ TESTNAME= $(TEST1)
 
 #====================================#
 
-DEBUG_INCLUDES= $(INCLUDE_GRYLTOOLS)
-DEBUG_LIBCLUDES= $(LIBCLUDE_GRYLTOOLS)
-RELEASE_INCLUDES= $(INCLUDE_GRYLTOOLS)
-RELEASE_LIBCLUDES= $(LIBCLUDE_GRYLTOOLS)
+DEBUG_INCLUDES= 
+RELEASE_INCLUDES= 
 
 BINPREFIX= 
+
+# Set the libraries
+
+LDFLAGS += $(GRYLTOOLS_LIBCLUDE)
+CXXFLAGS += $(GRYLTOOLS_INCLUDE)
 
 #===================================#
 
@@ -66,19 +66,17 @@ release: relops $(GBNF) $(TESTNAME)
 
 debops: 
 	$(eval CXXFLAGS += $(DEBUG_CXXFLAGS) $(DEBUG_INCLUDES))
-	#$(eval LDFLAGS += $(DEBUG_LDFLAGS) $(DEBUG_LIBCLUDES))
 	$(eval BINPREFIX = $(BINDIR_DEBUG)) 
 
 relops: 
 	$(eval CXXFLAGS += $(RELEASE_CXXFLAGS) $(RELEASE_INCLUDES)) 
-	#$(eval LDFLAGS += $(RELEASE_LDFLAGS) $(RELEASE_LIBCLUDES)) 
 	$(eval BINPREFIX = $(BINDIR_RELEASE)) 
 
 .cpp.o:
 	$(CXX) $(CXXFLAGS) -c $*.cpp -o $*.o
 
 $(GBNF): $(SOURCES_GBNF:.cpp=.o) 
-	$(CXX) -o $(BINPREFIX)/$@ $^ $(LDFLAGS)
+	$(CXX) $(LDFLAGS) -o $(BINPREFIX)/$@ $^ $(LIBS_GBNF) 
 $(GBNF)_debug: debops $(GBNF)    
 
 #===================================#
@@ -86,8 +84,8 @@ $(GBNF)_debug: debops $(GBNF)
 
 test_debug: debops $(TESTNAME)
 
-$(TEST1): $(SOURCES_TEST1:.cpp=.o) $(LIBS_TEST1)
-	$(CXX) -o $@ $^ $(LDFLAGS)
+$(TEST1): $(SOURCES_TEST1:.cpp=.o) 
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS_TEST1)
 
 #===================================#
 
