@@ -1,7 +1,7 @@
 #include "lexer.h"
 #include <string>
 #include <cstdio>
-#include <ctype>
+#include <cctype>
 #include <cstring>
 #include <algorithm>
 
@@ -123,8 +123,10 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
         case CharStringStart:
             if( c=='\\' ) // Expect special character
                 as = SpecChar;
-            if( c=='\'' || c=='\"' )
-                // Output a string.
+            if( c=='\'' || c=='\"' ){
+                newNode.code = LexemCode.STRING;
+                newNode.data.pop_back();
+            }
             // If any other, stay on this state.
             break;
 
@@ -133,6 +135,79 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
             as = CharStringStart;
             break;
 
+        case CommOrDiv:
+            if( c=='/' )
+                as = OneLineComm;
+            else if( c=='*' )
+                as = MultiLineComm;
+            else{
+                newNode.code = LexemCode.OPERATOR;
+                newNode.data.pop_back();
+                nextSymbols.push_back(c);
+            }
+            break;
+
+        case OneLineComm:
+            if( c=='\n' ){
+                newNode.code = LexemCode.COMMENT;
+                newNode.data.pop_back();
+            }
+            // If not endline, stay on this state.
+            break;
+
+        case MultiLineComm:
+            if( c=='*' )
+                as = MultiLineEnd;
+            // If any other, stay on this state.
+            break;
+
+        case MultiLineEnd:
+            if( c=='*' )
+                {} // Stay on MultiLineEnd state.
+            else if(c=='/'){
+                newNode.code = LexemCode.COMMENT;
+                newNode.data.pop_back();
+            }
+            else // If any other char, move to main muliline state.
+                as = MultiLineComm; 
+            break;
+
+        case AssignableOp:
+            if( c=='=' )
+                as = OperEquals;
+            else{
+                newNode.code = LexemCode.OPERATOR;
+                newNode.data.pop_back();
+                nextSymbols.push_back(c);
+            }
+            break;
+
+        case OperEquals: ///=, &=, etc
+            // No matter what char, output operator.
+            newNode.code = LexemCode.OPERATOR;
+            newNode.data.pop_back();
+            nextSymbols.push_back(c);
+            break;
+
+        case AssignableRepeatableOp:
+            if( c=='=' || c==newNode.data[0] )
+                as = OperEquals;
+            else{
+                newNode.code = LexemCode.OPERATOR;
+                newNode.data.pop_back();
+                nextSymbols.push_back(c);
+            }
+            break;
+
+        case Dash: // We have a '-'. Now, next char can be '-', '=', '>' (corresponding ops are -- -= ->)
+            if( c=='-' || c=='=' || c=='>' )
+                as = OperEquals;
+            else{
+                newNode.code = LexemCode.OPERATOR;
+                newNode.data.pop_back();
+                nextSymbols.push_back(c);
+            }
+            break;
         }
 
         // After one state switch, check if lexem found, or error occured. If yes, quit loop,

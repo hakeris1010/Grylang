@@ -5,7 +5,7 @@ namespace gpar{
 //TODO:
 
 // All-tree methods
-std::shared_ptr<ParseNode> GParser::buildParseTree()
+/*std::shared_ptr<ParseNode> GParser::buildParseTree()
 {
 
 }
@@ -13,7 +13,7 @@ std::shared_ptr<ParseNode> GParser::buildParseTree()
 void GParser::parseNodesToQueue(gtools::BlockingQueue& queue)
 {
 
-}
+}*/
 
 
 }

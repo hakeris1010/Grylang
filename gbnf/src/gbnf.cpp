@@ -5,12 +5,16 @@
  *  - convert the .gbnf file to C/C++ header defined above.
  */ 
 
-#include <cctype>
 #include <string>
 #include <iostream>
 #include <algorithm>
-#include <gryltools/hlog.h>
+#include <cstdarg>
+#include <cstdio>
+#include <cctype>
 #include "gbnf.h"
+extern "C" {
+    #include <gryltools/hlog.h>
+}
 
 namespace gbnf{
 
@@ -185,7 +189,7 @@ void ParseInput::parseGrammarRule( GrammarRule& rule ){
     std::string tmp;
     tmp.reserve(256);
 
-    std::cout<<"Getting TagName\n";
+    hlogf("Getting TagName\n");
     
     // Get the first tag (the NonTerminal this rule defines), and it's ID.
     getTagName( tmp );
@@ -209,7 +213,7 @@ void ParseInput::parseGrammarRule( GrammarRule& rule ){
     while( parseGrammarOption( tok ) ){
         rule.options.push_back(tok);
 
-        std::cout<<"Got Token: "<<tok.id<<", "<<tok.data<<"\n";
+        hlogf("Got Token: %d, %s\n", tok.id, tok.data.c_str());
     }
     // We've parsed a rule. All options are parsed.
 }
@@ -233,7 +237,7 @@ void ParseInput::convert(){
         else if(c == '<'){ // Rule start. Get the rule and put into the table.
             nextChars += c;
             
-            std::cout<<"Getting next grammarrule\n";
+            hlogf("Getting next grammarrule\n");
 
             data.grammarTable.push_back( GrammarRule() );
             parseGrammarRule( data.grammarTable[ data.grammarTable.size()-1 ] );
@@ -246,6 +250,7 @@ void ParseInput::convert(){
 /*! Public functions, called from outside o' this phile.
  */ 
 void convertToGbnf(GbnfData& data, std::istream& input){
+    hlogSetActive(true);
     ParseInput pi( input, data );
     pi.convert();
 }
@@ -265,4 +270,16 @@ void GbnfData::print( std::ostream& os ){
 
 }
 
+/*
+ * Set, Close and Get the current LogFile
+ FILE* hlogSetFile(const char* fname, char mode);
+ void hlogSetFileFromFile(FILE* file, char mode);
+ void hlogCloseFile();
+ FILE* hlogGetFile();
+ char hlogIsActive();
+ void hlogSetActive(char val);
+ 
+ * Write to the LogFile (Printf style) 
+ void hlogf( const char* fmt, ... );
+*/
 
