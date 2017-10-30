@@ -4,7 +4,7 @@
 
 int main(int argc, char** argv){
     std::cout<<"Testing.\n";
-    std::istringstream stream("Kawaii desu nee~~ :3");
+    std::istringstream stream("Kawaii desu nee~~ :3", std::ios::in | std::ios::binary);
 
     gpar::GrylangLexer lex(stream);
 

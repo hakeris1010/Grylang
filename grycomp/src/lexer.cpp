@@ -20,7 +20,7 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode(){
 
 std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
     // Finite automaton states, which will be used in a loop.
-    enum AutoStates {None, IdentOrKeywd, IntOrFloat, Float, CharStart, SpecChar,
+    enum AutoStates {None, IdentOrKeywd, IntOrFloat, Float, CharStringStart, SpecChar,
         StandardChar, StringStart, CommOrDiv, OneLineComm, MultiLineComm, MultiLineEnd, 
         UnaryOp, AssignableOp, AssignableRepeatableOp, Dash, Arrow, OperEquals, OperEqualsOperOper
     };
@@ -94,9 +94,9 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
                 nextSymbols.push_back(c); 
                 // Check if data string (lexem) is a keyword. If not, it's an identifier.
                 if(std::find(GKeywords.begin(), GKeywords.end(), newNode.data) != GKeywords.end())
-                    newNode.code = LexemCode.KEYWORD;
+                    newNode.code = LexemCode::KEYWORD;
                 else
-                    newNode.code = LexemCode.IDENT;
+                    newNode.code = LexemCode::IDENT;
             }
             // If word character, then don't change state - just resume the loop.
             break;
@@ -105,16 +105,16 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
             if(c=='.') // Decimal point occured - it's float.
                 as = Float;
             else if( !isdigit(c) ){ // Not a digit - integer end.
-                newNode.code = LexemCode.INTEGER;
+                newNode.code = LexemCode::INTEGER;
                 newNode.data.pop_back();
                 nextSymbols.push_back(c);
             }
             // If digit, don't change anything - number end is not reached.
-            break. 
+            break; 
                  
         case Float:
             if( !isdigit(c) ){ // Not a digit - float end.
-                newNode.code = LexemCode.FLOAT;
+                newNode.code = LexemCode::FLOAT;
                 newNode.data.pop_back();
                 nextSymbols.push_back(c);
             }
@@ -124,7 +124,7 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
             if( c=='\\' ) // Expect special character
                 as = SpecChar;
             if( c=='\'' || c=='\"' ){
-                newNode.code = LexemCode.STRING;
+                newNode.code = LexemCode::STRING;
                 newNode.data.pop_back();
             }
             // If any other, stay on this state.
@@ -141,7 +141,7 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
             else if( c=='*' )
                 as = MultiLineComm;
             else{
-                newNode.code = LexemCode.OPERATOR;
+                newNode.code = LexemCode::OPERATOR;
                 newNode.data.pop_back();
                 nextSymbols.push_back(c);
             }
@@ -149,7 +149,7 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
 
         case OneLineComm:
             if( c=='\n' ){
-                newNode.code = LexemCode.COMMENT;
+                newNode.code = LexemCode::COMMENT;
                 newNode.data.pop_back();
             }
             // If not endline, stay on this state.
@@ -165,7 +165,7 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
             if( c=='*' )
                 {} // Stay on MultiLineEnd state.
             else if(c=='/'){
-                newNode.code = LexemCode.COMMENT;
+                newNode.code = LexemCode::COMMENT;
                 newNode.data.pop_back();
             }
             else // If any other char, move to main muliline state.
@@ -176,7 +176,7 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
             if( c=='=' )
                 as = OperEquals;
             else{
-                newNode.code = LexemCode.OPERATOR;
+                newNode.code = LexemCode::OPERATOR;
                 newNode.data.pop_back();
                 nextSymbols.push_back(c);
             }
@@ -184,7 +184,7 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
 
         case OperEquals: ///=, &=, etc
             // No matter what char, output operator.
-            newNode.code = LexemCode.OPERATOR;
+            newNode.code = LexemCode::OPERATOR;
             newNode.data.pop_back();
             nextSymbols.push_back(c);
             break;
@@ -193,7 +193,7 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
             if( c=='=' || c==newNode.data[0] )
                 as = OperEquals;
             else{
-                newNode.code = LexemCode.OPERATOR;
+                newNode.code = LexemCode::OPERATOR;
                 newNode.data.pop_back();
                 nextSymbols.push_back(c);
             }
@@ -203,7 +203,7 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
             if( c=='-' || c=='=' || c=='>' )
                 as = OperEquals;
             else{
-                newNode.code = LexemCode.OPERATOR;
+                newNode.code = LexemCode::OPERATOR;
                 newNode.data.pop_back();
                 nextSymbols.push_back(c);
             }

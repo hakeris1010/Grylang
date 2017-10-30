@@ -31,7 +31,7 @@ GRYLTOOLS_LIBCLUDE= -L../gryltools/lib
 
 #----- GRYCOMP Sources/Libs ----#
 
-GRYCOMP= gbnf
+GRYCOMP= grycomp
 SOURCES_GRYCOMP= src/main.cpp src/parser.cpp src/lexer.cpp 
 LIBS_GRYCOMP= -lgryltools
 
@@ -93,4 +93,4 @@ clean:
 	$(RM) *.o */*.o */*/*.o */*/*/*.o
 
 clean_all: clean
-	$(RM) $(BINDIR)/*.* $(BINDIR)/*/*.* $(TESTNAME)
+	$(RM) $(BINDIR)/*/* $(TESTNAME)
