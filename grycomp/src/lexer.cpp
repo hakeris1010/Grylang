@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cstring>
 #include <algorithm>
+#include <iostream>
 
 namespace gpar{
 
@@ -46,17 +47,14 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
             nextSymbols.erase(0,1); // erase first element from buffer.
         }
         else if(!input.eof())
-            input >> c;
+            input.read(&c, 1);
         else // input.eof(), and no chars on nextSyms buffer
             break;
 
-        // Actual automaton part
-        /*
-        newNode.data.push_back(c);
-        newNode.code = LexemCode::CHAR;
-        break;
-        */
-
+        // Print debug data
+        std::cout<<"State: "<<as<<", c: "<<c<<"\n";
+        
+        // Push current char to buffer
         newNode.data.push_back(c);
 
         // Simulate a finite automaton using a switch statement. Every state can have it's own 
