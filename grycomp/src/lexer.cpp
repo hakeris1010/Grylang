@@ -27,12 +27,12 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
     };
 
     std::shared_ptr<ParseNode> returnNode;
-    if(this->nextNode != nullptr){
+    /*if(this->nextNode != nullptr){
         returnNode = this->nextNode;
         this->nextNode = nullptr;
-    }
+    }*/
     // Check if input is at error state, and nextNode == nullptr
-    else if(input.eof() && nextSymbols.empty())
+    /*else*/ if(input.eof() && nextSymbols.empty())
         return nullptr;
 
     // Get next node if no error is present.
@@ -50,17 +50,17 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
         else if(!input.eof())
             input.read(&c, 1);
         else{ // input.eof(), and no chars on nextSyms buffer
-            /*std::cout<<"\nEnd. c= "<<c<<"\n";
-            if(endCount==0){
-                c='}';
-                endCount = 1;
+            //std::cout<<"\nEnd. c= "<<c<<"\n";
+            if(endCount<2){
+                c=' ';
+                endCount++;
             }
-            else*/
+            else
                 break;
         }
 
         // Print debug data
-        //std::cout<<"State: "<<as<<", c: "<<c<<"\n";
+        //std::cout<<"State: "<<as<<", c: \'"<<c<<"\', nextChars: "<<nextSymbols<<"\n";
         
         // Push current char to buffer
         newNode.data.push_back(c);
@@ -91,8 +91,10 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
                 as = AssignableRepeatableOp;
             else if( c=='-' )
                 as = Dash;
-            else // Whitespace
+            else if( std::isspace(c) )
                 newNode.data.pop_back();
+            else // Error!
+                throw std::runtime_error("Wrong character!!! "+std::to_string(c));
             // get out of switch, and continue iteration.
             break;
 
@@ -229,6 +231,7 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
         return nullptr;
     }
 
+    /*
     if(getNextNode){
         this->nextNode = std::make_shared<ParseNode>( std::shared_ptr<ParseData>((ParseData*)(new LexicParseData(newNode))) );
 
@@ -244,6 +247,8 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
         if(returnNode == nullptr)
             returnNode = std::make_shared<ParseNode>( std::shared_ptr<ParseData>((ParseData*)(new LexicParseData(newNode))) );
     }
+    */
+    returnNode = std::make_shared<ParseNode>( std::shared_ptr<ParseData>((ParseData*)(new LexicParseData(newNode))) );
 
     return returnNode;
 }
