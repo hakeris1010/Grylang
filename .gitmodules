@@ -1,0 +1,3 @@
+[submodule "gryltools/libGrylTools"]
+	path = gryltools/libGrylTools
+	url = https://github.com/hakeris1010/libGrylTools.git

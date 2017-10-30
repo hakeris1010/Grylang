@@ -38,6 +38,7 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
     // Get next node if no error is present.
     LexicParseData newNode;
     char c;
+    int endCount = 0;
     int as = AutoStates::None;
 
     while(true){
@@ -48,11 +49,18 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
         }
         else if(!input.eof())
             input.read(&c, 1);
-        else // input.eof(), and no chars on nextSyms buffer
-            break;
+        else{ // input.eof(), and no chars on nextSyms buffer
+            /*std::cout<<"\nEnd. c= "<<c<<"\n";
+            if(endCount==0){
+                c='}';
+                endCount = 1;
+            }
+            else*/
+                break;
+        }
 
         // Print debug data
-        std::cout<<"State: "<<as<<", c: "<<c<<"\n";
+        //std::cout<<"State: "<<as<<", c: "<<c<<"\n";
         
         // Push current char to buffer
         newNode.data.push_back(c);
@@ -67,8 +75,10 @@ std::shared_ptr<ParseNode> GrylangLexer::getNextNode_Priv(bool getNextNode){
                 as = IdentOrKeywd;
             else if( isdigit(c) )
                 as = IntOrFloat;
-            else if(c=='\'' || c=='\"') // We don't differentiate between a char and a string.
+            else if(c=='\'' || c=='\"'){ // We don't differentiate between a char and a string.
+                newNode.data.pop_back();
                 as = CharStringStart;
+            }
             else if(c=='/')
                 as = CommOrDiv;
             else if( strchr("{}[]().,:;~", c) ){
