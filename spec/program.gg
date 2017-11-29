@@ -1,21 +1,4 @@
-76546kjhkh785757
-
----><=====
-  3 7654765.8767.8767868.87687
-    4 <<=>= /* tes i = *po */
-      5 if ifasa
-        6 /*if ifas **/
-          7 "testas
-            8 if
-              9\"
-               
-               10 testas
-                11 ifas
-                 12 
-                  13 
-
-
-/*#import stdlib
+#import stdlib
 
 class foo
 {
@@ -59,6 +42,4 @@ fun main(int argc, char[][] argv) : int
     eee:
 
     return 0;
-} 
-
-
+}

@@ -4,8 +4,8 @@
 
 int main(int argc, char** argv){
     std::cout<<"Testing.\n";
-    //std::istringstream stream("string i=\"jjjj\\\"hah\";\\\" const int o = 60;", std::ios::in | std::ios::binary);
-    std::ifstream stream("../spec/program.gg", std::ios::binary);
+    std::istringstream stream("string i=\"jjjj\\\"hah\";\\\" const int o = 60;", std::ios::in | std::ios::binary);
+    //std::ifstream stream("../spec/program.gg", std::ios::binary);
 
     try{
         gpar::GrylangLexer lex(stream);

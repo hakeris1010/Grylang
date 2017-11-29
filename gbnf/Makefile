@@ -27,7 +27,7 @@ ZSH_RESULT:=$(shell mkdir -p $(TESTDIR) $(LIBDIR) $(BINDIR_RELEASE) $(BINDIR_DEB
 #- GrylTools Libs/Includes --#
 
 GRYLTOOLS_INCLUDE= -I../gryltools/libGrylTools/include
-GRYLTOOLS_LIBCLUDE= -L../gryltools/libGrylTools/lib
+GRYLTOOLS_LIBCLUDE= -L../gryltools/libGrylTools/lib/static
 
 #----- GBNF Sources/Libs ----#
 
