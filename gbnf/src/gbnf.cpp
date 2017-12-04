@@ -11,6 +11,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cctype>
+#include <gryltools/stackreader.hpp>
 #include "gbnf.h"
 extern "C" {
     #include <gryltools/hlog.h>
@@ -18,31 +19,21 @@ extern "C" {
 
 namespace gbnf{
 
+struct ParseState{
+    size_t line = 0;
+    size_t pos = 0;
+    short lastTagID = 0;
+}
+
 class ParseInput{
 private:
-    const static int SKIPMODE_NOSKIP           = 0;
-    const static int SKIPMODE_NOSKIP_NOESCAPE  = 1;
-    const static int SKIPMODE_SKIPWS           = 2;
-    const static int SKIPMODE_SKIPWS_NONEWLINE = 3;
-
-    std::istream& input; // Notice these are REFERENCES.
+    gtools::StackReader reader;
     GbnfData& data;
 
-    int lineNum = 0;
-    int posInLine = 0;
-    short lastTagID = 0;
-
-    std::string nextChars;
+    ParseState ps;
     std::string tempData;
 
     inline void throwError(const char* message) const;
-    inline bool getNextString( std::string& str, size_t len=1 );
-    inline bool getNextChar( char& c, int skipmode=SKIPMODE_NOSKIP );
-    inline char popGetNextChar();
-    inline void pushNextChar( char c );
-    inline void pushNextChar( const std::string& str );
-    inline void pushNextChar( const char* str, size_t size );
-    inline void skipWhitespace( int skipmode );
     inline void updateLineStats( const std::string& str );
     inline void updateLineStats( char c );
 
@@ -53,7 +44,7 @@ private:
     void parseGrammarRule( GrammarRule& rule );
  
 public:
-    ParseInput( std::istream& is, GbnfData& dat ) : input( is ), data( dat ) {}
+    ParseInput( std::istream& is, GbnfData& dat ) : reader( is ), data( dat ) {}
 
     void convert();
 };
@@ -64,42 +55,13 @@ inline void ParseInput::throwError(const char* message) const {
     throw std::runtime_error( "["+std::to_string(lineNum)+":"+std::to_string(posInLine)+"]"+ message );
 }
 
-/*! Working with the priority read buffer.
- */ 
-inline char ParseInput::popGetNextChar(){
-    char c = 0;
-    if(!nextChars.empty()){
-        nextChars[ nextChars.size() - 1 ];
-        nextChars.pop_back();
-    }
-    return c;
-}
-
-inline void ParseInput::pushNextChar( char c ){
-    nextChars.push_back(c);
-}
-
-inline void ParseInput::pushNextChar( const char* str, size_t size ){
-    // Ensure proper space in nextChars.
-    nextChars.reserve( nextChars.size() + size );
-    
-    // Push the chars reversed, to ensure proper popping.
-    for(const char* c = str+(size-1); c >= str; c--){
-        nextChars.push_back( *c );   
-    }
-}
-
-inline void ParseInput::pushNextChar( const std::string& c ){
-    pushNextChar( c.c_str(), c.size() );
-}
-
 /*! Can be used to find NonTerminal tag's ID from it's name, 
  *  or to insert into a table a new NonTerminal with name = name. ID ass'd automatically.
  */ 
 short ParseInput::getTagIDfromTable( const std::string& name, bool insertIfNotPresent ){
     // Search by iteration, because we can't search for string sorted.
     for(auto t : data.tagTable){
-        if(t.data == name)
+        if(t.data.compare( name ) == 0)
             return t.ID;
     }
     // If reached this point, element not found. Insert new NonTerminal Tag if flag specified.
@@ -112,11 +74,9 @@ short ParseInput::getTagIDfromTable( const std::string& name, bool insertIfNotPr
 }
 
 inline void ParseInput::updateLineStats( const std::string& str ) {
-    size_t count = std::count( str.begin(), str.end(), '\n' );
     size_t pos = 0, lastPos = 0;
     while( (pos = str.find('\n', lastPos)) != std::string::npos ){
         this->lineNum++;
-        this->posInLine = 0;
         lastPos = pos;
     }
     this->posInLine += str.size()-1 - lastPos;
@@ -129,99 +89,6 @@ inline void ParseInput::updateLineStats( char c ) {
     }
     else
         this->posInLine++;
-}
-
-char ParseInput::skipWhitespace(int skipmode = SKIPMODE_SKIPWS) {
-    bool ignoreNextNewLine = false;
-    while( !nextChars.empty() ){
-        char c = popGetNextChar();
-        if(c=='\\') 
-            ignoreNextNewLine = true;
-        else if(c == '\n'){
-            if(!ignoreNextNewLine){
-                this->lineNum++;
-                this->posInLine = 0;
-            }
-            else if(skipmode == SKIPMODE_SKIPWS_NONEWLINE)
-        }
-        else
-
-        if(std::isspace( c ){
-            if(skipmode==SKIPMODE_SKIPWS_NONEWLINE && c=='\n')
-        }
-        else{
-            break;
-        }
-         
-        this->posInLine++;
-    }
-    if( nextChars.empty() ){
-        input >> std::ws; // Skip whaitspaces.
-    }
-}
-
-/*! Gets the string of len chars from the input stream or the to-read nextChars buffer.
- *  Also updates all states, and returns false if can't read anything.
- */ 
-bool ParseInput::getNextString( std::string& str, size_t len, int skipmode ){
-    // Skip the whitespaces first if set so.
-    if(skipmode != SKIPMODE_NOSKIP){
-        if(!skipWhitespace( skipmode )) // No more characters to read.
-            return false;
-    }
-    str.clear();
-    str.reserve(len);
-
-    // When getting chars from nextChars, we don't need to update line stats, because
-    // these chars were already extracted from stream, so line counts were already updated.
-    if( !nextChars.empty() ){
-        // Read len chars from nextChars, and if len > nextChars.size(), read only until the end.
-        size_t readStart = nextChars.size() - len;
-        if(readStart < 0)
-            readStart = 0;
-
-        // Read reverse because of queue-like nature of nextChars.
-        const char* endpos = nextChars.c_str() + readStart;
-        for(const char* i = nextChars.c_str() + (nextChars.size()-1); i >= endpos; i--){
-            str.push_back( *i );
-        }
-        if(str.size() >= len)
-            return true;
-    }
-    if( !input.eof() ){ // Not yet EOF'd.
-        char tmp[ len - str.size() ];
-        size_t red = input.read( tmp, sizeof(tmp) );
-        str.append( tmp, red );
-
-        // Update the line stats of only the part that was extracted from stream.
-        updateLineStats( str.c_str() + (str.size() - red) );
-        return true;
-    }
-    // input EOF'd, and no chars on nextChar buffer - exit the loop depending on the state.
-    return false;
-}
-
-/*! Just simplified stuff of getting the n3xtcha4r.
- */ 
-inline bool ParseInput::getNextChar( char& c, int skipmode ){
-    if(skipmode != SKIPMODE_NOSKIP){
-        if(!skipWhitespace( skipmode )) // No more characters to read.
-            return false;
-    }
-
-    // Read the next character. It can be a char from a to-read buffer or a char from file.
-    if( !nextChars.empty() ){
-        c = popGetNextChar();
-    }
-    else if( !input.eof() ){ // Not yet EOF'd.
-        input >> c;
-        // Update line counters when reading from a Str34m.
-        updateLineStats( c );
-    }
-    else // input EOF'd, and no chars on nextChar buffer - return that no more to read.
-        return false;
-    
-    return true;
 }
 
 /*! Gets the name of the tag at current position. Can start with a '<' or a tag-compatibru letter.
@@ -265,7 +132,20 @@ bool ParseInput::parseGrammarOption( GrammarToken& tok ){
     tok.data = "Nyaa~";
     */
     char c;
-    while( true ){
+    while( reader.getChar( c, gtools::StackReader::SKIPMODE_SKIPWS ) ){
+        // Check if option end (a pipe symbol)
+        if( c == '|' )
+            break;
+
+        // NO!!!! Check if c is a line-concat symbol ( backslash ).
+        if( c == '\\' ){
+            skipmode = gtools::StackReader::SKIPMODE_SKIPWS;
+            continue;
+        }
+        
+
+
+
         // Preload a child token, for easier memory management
         tok.children.push_back( GrammarToken() );
         int ret = parseGrammarToken( tok.children[ tok.children.size() - 1 ] );
@@ -275,14 +155,15 @@ bool ParseInput::parseGrammarOption( GrammarToken& tok ){
             tok.children.pop_back();
         }
 
-        bool b = getNextChar(c, SKIPWS_NONEWLINE);
         if( !b || c=='<' )
             break;
         else
             throwError("Wrong option character - option start expected.");
-    } 
 
-    return true;
+        skipmode = gtools::StackReader::SKIPMODE_SKIPWS_NONEWLINE;
+    } 
+    
+    return tok.children.empty();
 }
 
 /*! Parse the grammar rule definition. 
@@ -300,16 +181,14 @@ void ParseInput::parseGrammarRule( GrammarRule& rule ){
     rule.ID = getTagIDfromTable( tmp, true ); // Add to table if not present.
 
     // Get the definition-assignment operator (::==, ::=, :==, :=).
-    skipWhitespace();
-    getNextString(tmp, 4);
+    reader.getString( &tmp[0], 4, gtools::StackReader::SKIPMODE_SKIPWS, ps.line, ps.pos );
 
     if( !tmp.compare(0, 4, "::==") ) 
         {}
     else if( !tmp.compare(0, 3, "::=") || !tmp.compare(0, 3, ":==") )
-        pushNextChar( tmp[3]);
+        reader.pushChar( tmp[3] );
     else if( !tmp.compare(0, 2, ":=") )
-        // Insert a substring of tmp, starting at pos=2 
-        pushNextChar( tmp.c_str()+2, tmp.size()-2 ); 
+        reader.pushString( tmp.c_str()+2, 2 ); 
     else
         throwError("No Def-Assignment operator on a rule");
 
@@ -325,31 +204,28 @@ void ParseInput::parseGrammarRule( GrammarRule& rule ){
 
 // Convert EBNF to GBNF.
 void ParseInput::convert(){
-    // Automaton States represented as Enum
-    enum States { None, Comment, DefTag, DefAssignment, DefAssEquals };
-
-    States st = None;
     char c;
-
     while( true ){
-        if( !getNextChar( c, SKIPWS ) ) // Skip whaitspeis also
+        // Get first non-whitespace character.
+        if( !reader.getChar( c, gtools::StackReader::SKIPMODE_SKIPWS, ps.line, ps.pos ) ) 
             break;
 
+        // Check possibilities: comment, rule.
         if(c == '#'){ // Comment start
             // Ignore chars until the endline, or Over 9000 of them have been read.
-            input.ignore(9000, '\n'); 
-            lineNum++;
+            if( !reader.skipUntilChar('\n') )
+                break; 
+            ps.line++;
         }
         else if(c == '<'){ // Rule start. Get the rule and put into the table.
-            pushNextChar( c );
+            reader.putChar( c );
             
             hlogf("Getting next grammarrule\n");
 
             data.grammarTable.push_back( GrammarRule() );
             parseGrammarRule( data.grammarTable[ data.grammarTable.size()-1 ] );
         }
-        // If non-whitespace character occured between rules and comments, error.  
-        else if( !std::isspace(static_cast<unsigned char>( c )) ) 
+        else // If other non-whitespace character occured between rules and comments, error.  
             throwError(" : Wrong start symbol!" );
     }
 }
@@ -359,6 +235,7 @@ void ParseInput::convert(){
 void convertToGbnf(GbnfData& data, std::istream& input){
     //hlogSetFile("grylogz.log", HLOG_MODE_APPEND);
     hlogSetActive(true);
+
     ParseInput pi( input, data );
     pi.convert();
 }
