@@ -23,7 +23,7 @@ struct ParseState{
     size_t line = 0;
     size_t pos = 0;
     short lastTagID = 0;
-}
+};
 
 class ParseInput{
 private:
@@ -38,8 +38,8 @@ private:
     inline void updateLineStats( char c );
 
     short getTagIDfromTable( const std::string& name, bool insertIfNotPresent );
-    void getTagName( std::string& str );
-    bool parseGrammarToken( GrammarToken& tok );
+    void getTagName( std::string& str, bool startsWithLetter = true );
+    int  parseGrammarToken( GrammarToken& tok, int recLevel = 0, int endType = 0 );
     bool parseGrammarOption( GrammarToken& tok );
     void parseGrammarRule( GrammarRule& rule );
  
@@ -52,7 +52,8 @@ public:
 /*! Function used to simplify the exception throwing.
  */ 
 inline void ParseInput::throwError(const char* message) const {
-    throw std::runtime_error( "["+std::to_string(lineNum)+":"+std::to_string(posInLine)+"]"+ message );
+    throw std::runtime_error( "[" + std::to_string( ps.line ) + 
+             ":" + std::to_string( ps.pos ) + "]" + message );
 }
 
 /*! Can be used to find NonTerminal tag's ID from it's name, 
@@ -66,9 +67,9 @@ short ParseInput::getTagIDfromTable( const std::string& name, bool insertIfNotPr
     }
     // If reached this point, element not found. Insert new NonTerminal Tag if flag specified.
     if(insertIfNotPresent){
-        data.tagTable.insert( NonTerminal( lastTagID+1, name ) );
-        lastTagID++;
-        return lastTagID;
+        data.tagTable.insert( NonTerminal( ps.lastTagID+1, name ) );
+        ps.lastTagID++;
+        return ps.lastTagID;
     }
     return -1;
 }
@@ -76,31 +77,35 @@ short ParseInput::getTagIDfromTable( const std::string& name, bool insertIfNotPr
 inline void ParseInput::updateLineStats( const std::string& str ) {
     size_t pos = 0, lastPos = 0;
     while( (pos = str.find('\n', lastPos)) != std::string::npos ){
-        this->lineNum++;
+        ps.line++;
         lastPos = pos;
     }
-    this->posInLine += str.size()-1 - lastPos;
+    ps.pos += str.size()-1 - lastPos;
 }
 
 inline void ParseInput::updateLineStats( char c ) {
     if(c == '\n'){
-        this->lineNum++;
-        this->posInLine = 0;
+        ps.line++;
+        ps.pos = 0;
     }
     else
-        this->posInLine++;
+        ps.pos++;
 }
 
-/*! Gets the name of the tag at current position. Can start with a '<' or a tag-compatibru letter.
+/*! Gets the name of the tag at current position. 
+ *  @param str - a buffer to which to write a tag.
+ *  @param startsWithLetter - if false, tag starts with a '<',
+ *         if true - with a tag-compatibru letter.
  */ 
-void ParseInput::getTagName( std::string& str ){
+void ParseInput::getTagName( std::string& str, bool startsWithLetter ){
     char c = 0;
-    if(getNextChar(c)){
-        if(c != '<') // Ignore the '<'. If char is not a '<', add it to nexttoreads.
-            pushNextChar( c);
-    }
+    /*if( !startsWithLetter )
+        reader.getChar( c ); */
 
-    while( getNextChar(c) ){
+    if( reader.peekChar() == '<' ) // Starts with a '<' - skip it.
+        reader.getChar( c );
+
+    while( reader.getChar(c) ){
         if( c == '>' ){ // End
             if( str.empty() )
                 throwError( "Tag is empty!" );
@@ -110,20 +115,53 @@ void ParseInput::getTagName( std::string& str ){
         else if( !std::isalnum( static_cast<unsigned char>(c) ) && c != '_' ){
             throwError( "Wrong character in a tag!" );
         }
-        str += c;
+        str.push_back( c );
     }
+    
+    if( c != '>' )
+        throwError( "Tag hasn't ended!" );
 }
 
-/*! Gets next token
+/*! Gets next grammar Token. It's recursive.
+ *  - When called, the Reader position must be at first token's character.
  */ 
-bool ParseInput::parseGrammarToken( GrammarToken& tok ){
+int ParseInput::parseGrammarToken( GrammarToken& tok, int recLevel, int endType ){
+    // Check if token start character.
+    char c;
+    std::string buff;
 
-    return true;
+    if( !reader.getChar( c ) )
+        return 1; // End of stream
+
+    // Check all valid token start characters.
+    // Non-Terminal 
+    if( c == '<' ){
+        buff.reserve(32); // Reserve at least N chars for the upcoming tagname.
+        getTagName( buff, true );
+
+        tok.type = GrammarToken::TAG_ID;
+        tok.id = getTagIDfromTable( buff, true );
+    }
+    // Regex-String
+    else if( c == '\"' ){
+        tok.type = GrammarToken::REGEX_STRING;
+    }
+    // Group. Several repeat types included.
+    else if( c == '{' ){
+        tok.type = GrammarToken::GROUP_ONE;
+
+    }
+    // Other character - just Throw an Error and be happy.
+    else
+        throwError( "Wrong token start symbol"+c );
+
+    return 0; // Success.
 }
 
 /*! Get a Grammar Option (Root Token).
  *  - Consists of several child tokens, of which some can be nested or even recursive.
  *  @param tok - a reference to a ready GrammarToken structure.
+ *  @return - true if expecting more options, false if otherwise (rule ended or stream ended)
  */ 
 bool ParseInput::parseGrammarOption( GrammarToken& tok ){
     tok.type = GrammarToken::ROOT_TOKEN;
@@ -133,37 +171,25 @@ bool ParseInput::parseGrammarOption( GrammarToken& tok ){
     */
     char c;
     while( reader.getChar( c, gtools::StackReader::SKIPMODE_SKIPWS ) ){
-        // Check if option end (a pipe symbol)
+        // Check if option end (a pipe symbol) - just return true, and expect next option.
         if( c == '|' )
-            break;
+            return true;
 
-        // NO!!!! Check if c is a line-concat symbol ( backslash ).
-        if( c == '\\' ){
-            skipmode = gtools::StackReader::SKIPMODE_SKIPWS;
-            continue;
-        }
-        
-
-
+        // Whole rule end - return false, don't expect more options. 
+        else if( c == ';' )
+            return false;
 
         // Preload a child token, for easier memory management
         tok.children.push_back( GrammarToken() );
         int ret = parseGrammarToken( tok.children[ tok.children.size() - 1 ] );
 
-        // Error occured or file end reached and token did not complete.
-        if(ret){ 
+        // Non-Fatal error occured or file end reached and token did not complete.
+        // Just pop out the token, and that's it.
+        if(ret) 
             tok.children.pop_back();
-        }
-
-        if( !b || c=='<' )
-            break;
-        else
-            throwError("Wrong option character - option start expected.");
-
-        skipmode = gtools::StackReader::SKIPMODE_SKIPWS_NONEWLINE;
     } 
-    
-    return tok.children.empty();
+    // If stream has ended, return false - no more chars can be read.
+    return false;
 }
 
 /*! Parse the grammar rule definition. 
@@ -186,16 +212,21 @@ void ParseInput::parseGrammarRule( GrammarRule& rule ){
     if( !tmp.compare(0, 4, "::==") ) 
         {}
     else if( !tmp.compare(0, 3, "::=") || !tmp.compare(0, 3, ":==") )
-        reader.pushChar( tmp[3] );
+        reader.putChar( tmp[3] );
     else if( !tmp.compare(0, 2, ":=") )
-        reader.pushString( tmp.c_str()+2, 2 ); 
+        reader.putString( tmp.c_str()+2, 2 ); 
     else
         throwError("No Def-Assignment operator on a rule");
 
     // Get options (ROOT type tokens), one by one, in a loop
     GrammarToken tok;
-    while( parseGrammarOption( tok ) ){
-        rule.options.push_back(tok);
+    bool areMore = true;
+
+    while( areMore ){
+        areMore = parseGrammarOption( tok ); 
+
+        if( !tok.children.empty() )
+            rule.options.push_back(tok);
 
         hlogf("Got Token: %d, %s\n", tok.id, tok.data.c_str());
     }

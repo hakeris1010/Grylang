@@ -95,6 +95,7 @@ struct NonTerminal{
  *  - Child tokens must be sequentially matched with every incoming token-to-match to match the rule.
  */ 
 struct GrammarToken{
+    const static char GROUP_ONE         = '1';
     const static char GROUP_OPTIONAL    = '?';
     const static char GROUP_REPEAT_NONE = '*';
     const static char GROUP_REPEAT_ONE  = '+';
