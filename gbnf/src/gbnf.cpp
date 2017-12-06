@@ -12,6 +12,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cctype>
+#include <cstdarg>
 #include <gryltools/stackreader.hpp>
 #include "gbnf.h"
 extern "C" {
@@ -33,6 +34,9 @@ private:
 
     ParseState ps;
     std::string tempData;
+
+    template<typename... Args>
+    inline void logf( bool debug, const char* message, Args&&... args ) const;
 
     inline void throwError( const std::string& message ) const; 
     inline void updateLineStats( const std::string& str );
@@ -56,6 +60,15 @@ inline void ParseInput::throwError( const std::string& message ) const {
     std::stringstream ss;
     ss <<"["<< std::to_string( ps.line ) <<":"<< std::to_string( ps.pos ) <<"] "<< message;
     throw std::runtime_error( ss.str() );
+}
+
+/*! Simplified logging mechanism.
+ */ 
+template<typename... Args>
+inline void ParseInput::logf( bool dewit, const char* message, Args&&... args ) const {
+    if(!dewit)
+        return;
+    hlogf( message, std::forward<Args>( args )... );
 }
 
 /*! Can be used to find NonTerminal tag's ID from it's name, 
@@ -128,12 +141,14 @@ void ParseInput::getTagName( std::string& str, bool startsWithLetter ){
  *  - When called, the Reader position must be at first token's character.
  */ 
 int ParseInput::parseGrammarToken( GrammarToken& tok, int recLevel, char endChar ){
+    const bool dbg = false;
+
     const static int END_OF_STREAM             = 2;
     const static int RECURSIVE_ENDCHAR_REACHED = 1;
     //const static int NORMAL_SUCCESS            = 0;
 
     std::string recs( recLevel, ' ' );
-    hlogf("%s[parseGrammarToken(_,_,\'%c\']\n", recs.c_str(), endChar);
+    logf(dbg,"%s[parseGrammarToken(_,_,\'%c\']\n", recs.c_str(), endChar);
 
     // Check if token start character.
     char c;
@@ -146,19 +161,19 @@ int ParseInput::parseGrammarToken( GrammarToken& tok, int recLevel, char endChar
     // Check all valid token start characters.
     // Non-Terminal 
     if( c == '<' ){
-        hlogf("%sTag recognized... ", recs.c_str());
+        logf(dbg,"%sTag recognized... \n", recs.c_str());
 
         buff.reserve(32); // Reserve at least N chars for the upcoming tagname.
         getTagName( buff, true );
 
-        hlogf("%sGot Name:%s\n", recs.c_str(), buff.c_str());
+        logf(dbg,"%sGot Name:%s\n", recs.c_str(), buff.c_str());
 
         tok.type = GrammarToken::TAG_ID;
         tok.id = getTagIDfromTable( buff, true );
     }
     // Regex-String
     else if( c == '\"' ){
-        hlogf("%sString recognized... ", recs.c_str());
+        logf(dbg,"%sString recognized... \n", recs.c_str());
 
         tok.type = GrammarToken::REGEX_STRING;
         register bool afterEscape = false;
@@ -181,14 +196,14 @@ int ParseInput::parseGrammarToken( GrammarToken& tok, int recLevel, char endChar
         if( c != '\"' ) // Wrong end
             throwError( "String hasn't ended!" );
 
-        hlogf("%sData: \"%s\"\n", tok.data);
+        logf(dbg,"%sData: \"%s\"\n", recs.c_str(), tok.data.c_str());
     }
     // Group. Several repeat types included.
     else if( c == '{' ){
         // Allocate a token.
         GrammarToken temp;
 
-        hlogf("%sRecursive Group start recognized. Getting childs...\n", recs.c_str());
+        logf(dbg,"%sRecursive Group start recognized. Getting childs...\n", recs.c_str());
 
         // Start recursive iteration through tokens.
         // Loop while the return value is 0, i.e. full valid token has been extracted.
@@ -214,12 +229,12 @@ int ParseInput::parseGrammarToken( GrammarToken& tok, int recLevel, char endChar
             reader.putChar( c ); 
         }
 
-        hlogf( "%sGroup ended. Group type: [ %c ], Child Count: %d\n", 
+        logf(dbg, "%sGroup ended. Group type: [ %c ], Child Count: %d\n", 
                recs.c_str(), tok.type, tok.children.size() );
     }
     // Check if current character is a recursive group end character. 
     else if( c == endChar ){
-        hlogf("%sRecursive Group ended. End char: \'%c\'\n\n", recs.c_str(), c );
+        logf(dbg,"%sRecursive Group ended. End char: \'%c\'\n\n", recs.c_str(), c );
 
         return RECURSIVE_ENDCHAR_REACHED;  // Returned from a recursion.
     }
@@ -227,8 +242,8 @@ int ParseInput::parseGrammarToken( GrammarToken& tok, int recLevel, char endChar
     else 
         throwError( "Wrong token start symbol: "+std::string(1, c) );
 
-    //hlogf("%sSuccessfully extracted a token!\n", recs.c_str());
-    hlogf("\n");
+    //logf(dbg,"%sSuccessfully extracted a token!\n", recs.c_str());
+    logf(dbg,"\n");
     return 0; //NORMAL_SUCCESS; // Success.
 }
 
@@ -238,11 +253,13 @@ int ParseInput::parseGrammarToken( GrammarToken& tok, int recLevel, char endChar
  *  @return - true if expecting more options, false if otherwise (rule ended or stream ended)
  */ 
 bool ParseInput::parseGrammarOption( GrammarToken& tok ){
+    const bool dbg = false;
+
     // Option is a ROOT Token, assign this type.
     tok.type = GrammarToken::ROOT_TOKEN;
     char c;
 
-    hlogf("[parseGrammarOption(_)]\n");
+    logf(dbg,"[parseGrammarOption(_)]\n");
 
     while( reader.getChar( c, gtools::StackReader::SKIPMODE_SKIPWS, ps.line, ps.pos ) ){
         // Check if option end (a pipe symbol) - just return true, and expect next option.
@@ -275,16 +292,18 @@ bool ParseInput::parseGrammarOption( GrammarToken& tok ){
  *  @param rule - the rule structure to parse data into.
  */ 
 void ParseInput::parseGrammarRule( GrammarRule& rule ){
+    const bool dbg = false;
+
     std::string tmp;
     tmp.reserve(256);
 
-    hlogf("[parseGrammarRule(_)]\nGetting TagName... \n");
+    logf(dbg,"[parseGrammarRule(_)]\nGetting TagName... \n");
     
     // Get the first tag (the NonTerminal this rule defines), and it's ID.
     getTagName( tmp );
     rule.ID = getTagIDfromTable( tmp, true ); // Add to table if not present.
 
-    hlogf("Name: %s, ID: %d \nGetting assignment OP...", tmp.c_str(), (int)rule.ID);
+    logf(dbg,"Name: %s, ID: %d \nGetting assignment OP...", tmp.c_str(), (int)rule.ID);
 
     // Get the definition-assignment operator (::==, ::=, :==, :=).
     reader.getString( &tmp[0], 4, gtools::StackReader::SKIPMODE_SKIPWS, ps.line, ps.pos );
@@ -301,7 +320,7 @@ void ParseInput::parseGrammarRule( GrammarRule& rule ){
     // Get options (ROOT type tokens), one by one, in a loop
     bool areMore = true;
 
-    hlogf("Getting Options in a Loop...\n\n");
+    logf(dbg,"Getting Options in a Loop...\n\n");
 
     while( areMore ){
         rule.options.push_back( GrammarToken() );
@@ -309,18 +328,21 @@ void ParseInput::parseGrammarRule( GrammarRule& rule ){
 
         areMore = parseGrammarOption( tok ); 
 
-        if( !tok.children.empty() )
+        // Accept only non-empty option tokens.
+        if( tok.children.empty() )
             rule.options.pop_back();
 
-        hlogf("Got Option: Count of Childs: %d\n\n", tok.children.size());
+        logf(dbg,"Got Option: Count of Childs: %d\n\n", tok.children.size());
     }
 
     // We've parsed a rule. All options are parsed.
-    hlogf("Rule finished!\n============================\n\n");
+    logf(dbg,"Rule finished!\n============================\n\n");
 }
 
 // Convert EBNF to GBNF.
 void ParseInput::convert(){
+    const bool dbg = false;
+
     char c;
     while( true ){
         // Get first non-whitespace character.
@@ -329,7 +351,7 @@ void ParseInput::convert(){
 
         // Check possibilities: comment, rule.
         if(c == '#'){ // Comment start
-            hlogf("Comment started. Skipping until \\n...");
+            logf(dbg, "Comment started. Skipping until \\n...");
 
             // Ignore chars until the endline, or Over 9000 of them have been read.
             if( !reader.skipUntilChar('\n') )
@@ -339,7 +361,7 @@ void ParseInput::convert(){
         else if(c == '<'){ // Rule start. Get the rule and put into the table.
             reader.putChar( c );
             
-            hlogf("Grammar Rule started. Getting it...\n");
+            logf(dbg, "Grammar Rule started. Getting it...\n");
 
             data.grammarTable.push_back( GrammarRule() );
             parseGrammarRule( data.grammarTable[ data.grammarTable.size()-1 ] );
@@ -365,14 +387,50 @@ void makeCHeaderFile(const GbnfData& data, const char* variableName, std::ostrea
 
 /*! Prints the GBNF Data to stream passed.
  */
-void GbnfData::print( std::ostream& os ) const {
-    os<<"GBNFData in 0x"<<this<<"\n Flags:"<<flags<<"\n TagTable:\n";
+void GbnfData::print( std::ostream& os, int mode, const std::string& ld ) const {
+    os << ld <<"GBNFData in 0x"<<this<<"\n"<<ld<<" Flags:"<<flags<<"\n"
+       << ld <<" TagTable ("<< tagTable.size() <<" entries):\n";
     for(auto a : tagTable)
-        os<<" ["<<a.ID<<"]: "<<a.data<<"\n";
-    os<<"\nGrammarTable: "<<grammarTable.size()<<" entries.\n";
+        os<<ld<<" [ "<<a.ID<<" ]: "<<a.data<<"\n";
+
+    os<<"\n"<<ld<<"GrammarTable: ("<<grammarTable.size()<<" entries):\n";
+    for(auto a : grammarTable)
+        a.print( os, mode, ld + " " );
 }
 
+void GrammarRule::print( std::ostream& os, int mode, const std::string& ld ) const {
+    os <<"\n"<< ld << "[GrammarRule]: Defining NonTerminal ID: [ "<< ID <<" ]\n"
+       << ld <<"Options ("<< options.size() <<" entries):\n\n";
+    for(auto a : options){
+        a.print( os, mode, ld + "  " );
+        os<<"\n";
+    }
 }
+
+void GrammarToken::print( std::ostream& os, int mode, const std::string& ld ) const {
+    os <<ld<< "[GrammarToken]: type: [ "<< getTypeString( type ) <<" ], ID: "<<id<<
+        ( data.empty() ? "" : ("\n"+ld+" Data: \""+data+"\"") ) << "\n";
+    if( !children.empty() )
+        os <<ld<< " Children: ("<< children.size() <<" entries).\n";
+    
+    for( auto a : children )
+        a.print( os, mode, ld+"- " );
+}
+
+std::string GrammarToken::getTypeString( char typ ){
+    switch( typ ){
+        case GROUP_ONE:         return "GROUP_ONE";
+        case GROUP_OPTIONAL:    return "GROUP_OPTIONAL";
+        case GROUP_REPEAT_NONE: return "GROUP_REPEAT_NONE";
+        case GROUP_REPEAT_ONE:  return "GROUP_REPEAT_ONE";
+        case REGEX_STRING:      return "REGEX_STRING";
+        case TAG_ID:            return "TAG_ID";
+        case ROOT_TOKEN:        return "Option (ROOT_TOKEN)";
+    }
+    return "INVALID";
+}
+
+} // namespace gbnf end.
 
 /*
  * Set, Close and Get the current LogFile
@@ -384,6 +442,6 @@ void GbnfData::print( std::ostream& os ) const {
  void hlogSetActive(char val);
  
  * Write to the LogFile (Printf style) 
- void hlogf( const char* fmt, ... );
+ void logf(dbg, const char* fmt, ... );
 */
 

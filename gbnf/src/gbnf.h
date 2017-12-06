@@ -110,7 +110,8 @@ struct GrammarToken{
 
     std::vector<GrammarToken> children;
 
-    void print( std::ostream& os ) const ;
+    void print( std::ostream& os, int mode=0, const std::string& leader="" ) const ;
+    static std::string getTypeString( char typ );
 };
 
 inline std::ostream& operator<< (std::ostream& os, const GrammarToken& tok){
@@ -126,7 +127,7 @@ struct GrammarRule{
     short ID;
     std::vector<GrammarToken> options; 
 
-    void print( std::ostream& os ) const ;
+    void print( std::ostream& os, int mode=0, const std::string& leader="" ) const ;
 };
 
 inline std::ostream& operator<< (std::ostream& os, const GrammarRule& rule){
@@ -142,9 +143,13 @@ struct GbnfData{
     std::set<NonTerminal, std::function<bool (NonTerminal, NonTerminal)>> tagTable; 
     std::vector<GrammarRule> grammarTable;
 
-    GbnfData() : tagTable ( [](NonTerminal a, NonTerminal b){ return a.ID < b.ID; } ) {}
+    GbnfData() : tagTable ( 
+            [](NonTerminal a, NonTerminal b){ 
+                return a.ID < b.ID; 
+            } ) 
+    {}
 
-    void print( std::ostream& os ) const;
+    void print( std::ostream& os, int mode=0, const std::string& leader="" ) const;
 };
 
 inline std::ostream& operator<< (std::ostream& os, const GbnfData& rule){
