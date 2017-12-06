@@ -9,10 +9,8 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
-#include <cstdarg>
 #include <cstdio>
 #include <cctype>
-#include <cstdarg>
 #include <gryltools/stackreader.hpp>
 #include "gbnf.h"
 extern "C" {
@@ -20,6 +18,8 @@ extern "C" {
 }
 
 namespace gbnf{
+    
+class GbnfCodeGenerator;
 
 struct ParseState{
     size_t line = 0;
@@ -371,21 +371,8 @@ void ParseInput::convert(){
     }
 }
 
-/*! Public functions, called from outside o' this phile.
- */ 
-void convertToGbnf(GbnfData& data, std::istream& input){
-    //hlogSetFile("grylogz.log", HLOG_MODE_APPEND);
-    hlogSetActive(true);
-
-    ParseInput pi( input, data );
-    pi.convert();
-}
-
-void makeCHeaderFile(const GbnfData& data, const char* variableName, std::ostream& output){
-
-}
-
-/*! Prints the GBNF Data to stream passed.
+/*! GBNF Structure Printers. 
+ *  Prints the GBNF Data to stream passed.
  */
 void GbnfData::print( std::ostream& os, int mode, const std::string& ld ) const {
     os << ld <<"GBNFData in 0x"<<this<<"\n"<<ld<<" Flags:"<<flags<<"\n"
@@ -428,6 +415,17 @@ std::string GrammarToken::getTypeString( char typ ){
         case ROOT_TOKEN:        return "Option (ROOT_TOKEN)";
     }
     return "INVALID";
+}
+
+/*! GBNF TOOLS. 
+ * Public functions, called from outside o' this phile.
+ */ 
+void convertToGbnf(GbnfData& data, std::istream& input){
+    //hlogSetFile("grylogz.log", HLOG_MODE_APPEND);
+    hlogSetActive(true);
+
+    ParseInput pi( input, data );
+    pi.convert();
 }
 
 } // namespace gbnf end.

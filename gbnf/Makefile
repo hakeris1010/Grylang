@@ -32,7 +32,10 @@ GRYLTOOLS_LIBCLUDE= -L../gryltools/libGrylTools/lib/static
 #----- GBNF Sources/Libs ----#
 
 GBNF= gbnf
-SOURCES_GBNF= src/gbnf.cpp src/gbnfprogram.cpp 
+SOURCES_GBNF= src/gbnf.cpp \
+			  src/gbnfcodegen.cpp \
+			  src/gbnfprogram.cpp 
+
 LIBS_GBNF= -lgryltools
 
 #--------- Test sources ---------#
