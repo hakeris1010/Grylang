@@ -105,11 +105,18 @@ struct GrammarToken{
 
     char type;
     short id;
-    short size;
+    //short size;
     std::string data;
 
     std::vector<GrammarToken> children;
+
+    void print( std::ostream& os ) const ;
 };
+
+inline std::ostream& operator<< (std::ostream& os, const GrammarToken& tok){
+    tok.print( os );
+    return os;
+}
 
 /*! Grammar rule structure.
  *  ID is the ID of a tag being defined.
@@ -118,7 +125,14 @@ struct GrammarToken{
 struct GrammarRule{
     short ID;
     std::vector<GrammarToken> options; 
+
+    void print( std::ostream& os ) const ;
 };
+
+inline std::ostream& operator<< (std::ostream& os, const GrammarRule& rule){
+    rule.print( os );
+    return os;
+}
 
 /*! Whole-File structure.  
  *  This is the structure which holds the whole grammar which is being worked with.
@@ -129,8 +143,14 @@ struct GbnfData{
     std::vector<GrammarRule> grammarTable;
 
     GbnfData() : tagTable ( [](NonTerminal a, NonTerminal b){ return a.ID < b.ID; } ) {}
-    void print( std::ostream& os );
+
+    void print( std::ostream& os ) const;
 };
+
+inline std::ostream& operator<< (std::ostream& os, const GbnfData& rule){
+    rule.print( os );
+    return os;
+}
 
 /*! Tools - Converters and Helpers
  *  Contains functions to use when converting to/from EBNF and parsing data.

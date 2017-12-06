@@ -7,7 +7,7 @@ AR = ar
 CXXFLAGS= -std=c++11
 LDFLAGS= 
 
-DEBUG_CXXFLAGS= -g
+DEBUG_CXXFLAGS= -g -Wall
 RELEASE_CXXFLAGS= -O2
 
 TESTDIR= ./bin/test

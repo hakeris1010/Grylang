@@ -4,11 +4,11 @@
 #include "gbnf.h"
 
 const char* testData = \
-  "<trans_unit> ::== {<ext_object>}*           \n" \
+  "<trans_unit> ::== {<ext_object>}* ;         \n" \
   "<ext_object> ::== <declaration>             \n" \
   "                 | <ext_variable_definition>\n" \
   "                 | <function_definition>    \n" \
-  "                 | <class_definition>       \n";
+  "                 | <class_definition> ;     \n";
 
 int main(int argc, char** argv){
     std::cout<<"Testingu-nyaa~~\n";
@@ -17,6 +17,8 @@ int main(int argc, char** argv){
     std::istringstream strm(testData, std::ios::in | std::ios::binary);
     
     gbnf::convertToGbnf( data, strm );
+
+    std::cout<<"\nGBNF Result Data: \n";
     data.print(std::cout);
 
     return 0;
