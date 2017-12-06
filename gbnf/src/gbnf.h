@@ -87,11 +87,10 @@ struct NonTerminal{
 
     NonTerminal( short _ID, const std::string& _data ) : ID( _ID ), data( _data ) {}
 
-    static constexpr std::function< bool( NonTerminal, NonTerminal ) > comparator = {
-        [](NonTerminal a, NonTerminal b){ 
-            return a.ID < b.ID; 
-        } 
-    };
+    // Comparation function.
+    static bool compare(NonTerminal a, NonTerminal b){ 
+        return a.ID < b.ID; 
+    }
 };
 
 /*! Token structure.
@@ -149,11 +148,11 @@ struct GbnfData{
     std::set<NonTerminal, std::function<bool (NonTerminal, NonTerminal)>> tagTable; 
     std::vector<GrammarRule> grammarTable;
 
-    GbnfData() : tagTable ( NonTerminal::comparator ) {}
-    /*GbnfData( uint16_t flg, std::initializer_list< NonTerminal > tagTbl, 
+    GbnfData() : tagTable ( NonTerminal::compare ) {}
+    GbnfData( uint16_t flg, std::initializer_list< NonTerminal > tagTbl, 
                             std::initializer_list< GrammarRule > grammarTbl )
-        : flags( flg ), tagTable( tagTbl, NonTerminal::comparator ), grammarTable( grammarTbl )
-    {}*/
+        : flags( flg ), tagTable( tagTbl, NonTerminal::compare ), grammarTable( grammarTbl )
+    {}
 
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const;
 };

@@ -19,8 +19,6 @@ extern "C" {
 
 namespace gbnf{
     
-class GbnfCodeGenerator;
-
 struct ParseState{
     size_t line = 0;
     size_t pos = 0;
