@@ -308,12 +308,12 @@ void ParseInput::parseGrammarRule( GrammarRule& rule ){
     // Get the definition-assignment operator (::==, ::=, :==, :=).
     reader.getString( &tmp[0], 4, gtools::StackReader::SKIPMODE_SKIPWS, ps.line, ps.pos );
 
-    if( !tmp.compare(0, 4, "::==") ) 
+    if( !strncmp(tmp.c_str(), "::==", 4) ) 
         {}
-    else if( !tmp.compare(0, 3, "::=") || !tmp.compare(0, 3, ":==") )
+    else if( !strncmp(tmp.c_str(), "::=", 3) || !strncmp(tmp.c_str(), ":==", 3) )
         reader.putChar( tmp[3] );
-    else if( !tmp.compare(0, 2, ":=") )
-        reader.putString( tmp.c_str()+2, 2 ); 
+    else if( !strncmp(tmp.c_str(), ":=", 2) )
+        reader.putString( tmp.c_str()+2, 2 );  
     else
         throwError("No Def-Assignment operator on a rule");
 
@@ -356,7 +356,7 @@ void ParseInput::convert(){
             // Ignore chars until the endline, or Over 9000 of them have been read.
             if( !reader.skipUntilChar('\n') )
                 break; 
-            ps.line++;
+            //ps.line++;
         }
         else if(c == '<'){ // Rule start. Get the rule and put into the table.
             reader.putChar( c );

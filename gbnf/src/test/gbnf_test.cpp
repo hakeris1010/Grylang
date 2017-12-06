@@ -3,6 +3,9 @@
 #include <sstream>
 #include "gbnf.h"
 
+// TODO: This test is a stub. Complete it.
+// Just sample data.
+
 const char* testData = 
   "<trans_unit> ::== {<ext_object>}* ;              \n" 
   "<ext_object> ::== <declaration>                  \n" 
@@ -23,17 +26,15 @@ const char* testData =
   "                      | \"implements\"           \n" 
   "<eee>                                            \n";
 
-const char* finalData = testData;
+const char* testData2= 
+  "#<a> <b>\n <a>::=\"kaka\"{{\"baka\"{{<ba>}<ca>}?<da>}*\"lala}+<woop>\n \t\xFF\tlalalalalla"
+  "NOOT NOOT!!!!\\a\baifb\'''akfan{{{{}}}}}\"<tatata>};\n"
+  "<zfk>:={<o>}*;<haha>:==<b>";
+
+const char* finalData = testData2;
 
 int main(int argc, char** argv){
-    // Properties
-    /*std::ofstream outFile;
-    bool verbose;
-
-    // Parse arguments.
-    if(argc > 1){
-        
-    }*/
+    std::cout<<"Testingu-nyaa~~\n";
 
     gbnf::GbnfData data;
     std::istringstream strm(finalData, std::ios::in | std::ios::binary);
@@ -45,4 +46,3 @@ int main(int argc, char** argv){
 
     return 0;
 }
-
