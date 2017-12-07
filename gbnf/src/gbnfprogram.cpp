@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include "gbnf.h"
+#include "gbnf.hpp"
 
 const char* testData = 
   "<trans_unit> ::== {<ext_object>}* ;              \n" 

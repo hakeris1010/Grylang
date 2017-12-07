@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <cctype>
 #include <gryltools/stackreader.hpp>
-#include "gbnf.h"
+#include "gbnf.hpp"
 extern "C" {
     #include <gryltools/hlog.h>
 }
