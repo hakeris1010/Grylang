@@ -110,8 +110,8 @@ struct GrammarToken{
     const static char TAG_ID            = '<';
     const static char ROOT_TOKEN        = 'r';
 
-    char type;
-    short id;
+    char type = 'r';
+    short id = 0;
     std::string data;
     std::vector<GrammarToken> children;
 
@@ -198,12 +198,12 @@ void convertToGbnf(GbnfData& data, std::istream& input);
  */ 
 void generateCode( const GbnfData& data, std::ostream& output, const char* variableName ); 
  
-namespace GbnfConstructionCode{
+/*namespace GbnfConstructionCode{
     void printNonTerminal( std::ostream& os, const NonTerminal& a, const auto& param );
     void printGrammarToken( std::ostream& os, const GrammarToken& a, const auto& param );
     void printGrammarRule( std::ostream& os, const GrammarRule& a, const auto& param );
     void printGbnfData( std::ostream& os, const GbnfData& a, const auto& param );
-}
+}*/
 
 }
 

@@ -96,15 +96,27 @@ void GbnfCodeGenerator::generate(){
     output<<"\n); \n\n";
     output<<"#endif // "<< includeGuard <<"\n";
 
-    /*GbnfData nuda( 1, { NonTerminal(1, "kaka"), NonTerminal(2, "baba"), }, {} ); 
+    /*GbnfData nuda( 1, 
+    { 
+        NonTerminal(1, "kaka"), 
+        NonTerminal(2, "baba"), 
+    }, 
+    {
+        GrammarRule(1, 
+        {
+            GrammarToken( 'r', 0, "", 
+            {
+                GrammarToken( '<', 2, "", 
+                {
+                } )
+            } ),
+            GrammarToken( 'r', 0, "Woot!",
+            {
+            } )
+        } )
+
+    } );
     output<< nuda;
-
-    output<<"\nTesting gtools::StringTools...\n";
-    std::string nn ("\0\tabc\x01\nzaza\0", 12);
-    
-    gtools::StringTools::escapeSpecials( nn, true );
-
-    output<<"Result: \""<< nn <<"\"\n";
     */
 }
 
@@ -151,8 +163,7 @@ void GbnfCodeGenerator::outputGrammarToken( std::ostream& outp, const GrammarTok
     std::string res = tok.data;
     gtools::StringTools::escapeSpecials( res, true );
 
-    outp << "GrammarToken( "<< GrammarToken::getTypeString( tok.type );
-    outp <<", "<< tok.id <<", \""<< res <<"\", ";
+    outp << "GrammarToken( \'"<< tok.type <<"\', "<< tok.id <<", \""<< res <<"\", ";
 
     ListOutputParams ps2 = ps;
     ps2.tabLeaderSize += 4;

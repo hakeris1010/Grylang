@@ -63,6 +63,11 @@ obj/
 
 # Binary dirs
 bin/
+include/
+lib/
+
+# Playground dirs
+playground/
 
 # Logfiles
 *.log
