@@ -40,10 +40,10 @@ int main(int argc, char** argv){
     
     gbnf::convertToGbnf( data, strm );
 
-    std::cout<<"\nGBNF Result Data: \n";
-    data.print(std::cout);
+    //std::cout<<"\nGBNF Result Data: \n";
+    //data.print(std::cout);
 
-    std::cout<<"\n==============================\nGenerating C++ code...\n";
+    //std::cout<<"\n==============================\nGenerating C++ code...\n";
     gbnf::generateCode( data, std::cout, "parsingData");
 
     return 0;

@@ -91,6 +91,8 @@ struct NonTerminal{
     static bool compare(NonTerminal a, NonTerminal b){ 
         return a.ID < b.ID; 
     }
+
+    // void printConstructionCode( std::ostream& o );
 };
 
 /*! Token structure.
@@ -119,8 +121,10 @@ struct GrammarToken{
         : type( _type ), id( _id ), data( _data ), children( _children )
     {}
 
-    void print( std::ostream& os, int mode=0, const std::string& leader="" ) const ;
     static std::string getTypeString( char typ );
+     
+    void print( std::ostream& os, int mode=0, const std::string& leader="" ) const ;
+    // void printConstructionCode( std::ostream& o );
 };
 
 inline std::ostream& operator<< (std::ostream& os, const GrammarToken& tok){
@@ -142,6 +146,7 @@ struct GrammarRule{
     {}
 
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const ;
+    // void printConstructionCode( std::ostream& o );
 };
 
 inline std::ostream& operator<< (std::ostream& os, const GrammarRule& rule){
@@ -164,6 +169,7 @@ struct GbnfData{
     {}
 
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const;
+    // void printConstructionCode( std::ostream& o );
 };
 
 inline std::ostream& operator<< (std::ostream& os, const GbnfData& rule){
@@ -191,6 +197,13 @@ void convertToGbnf(GbnfData& data, std::istream& input);
  *  @throws runtime_error if fatal error occured.
  */ 
 void generateCode( const GbnfData& data, std::ostream& output, const char* variableName ); 
+ 
+namespace GbnfConstructionCode{
+    void printNonTerminal( std::ostream& os, const NonTerminal& a, const auto& param );
+    void printGrammarToken( std::ostream& os, const GrammarToken& a, const auto& param );
+    void printGrammarRule( std::ostream& os, const GrammarRule& a, const auto& param );
+    void printGbnfData( std::ostream& os, const GbnfData& a, const auto& param );
+}
 
 }
 

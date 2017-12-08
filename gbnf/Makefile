@@ -4,7 +4,7 @@
 CXX = g++
 AR = ar
 
-CXXFLAGS= -std=c++11
+CXXFLAGS= -std=c++14
 LDFLAGS= 
 
 DEBUG_CXXFLAGS= -g -Wall
