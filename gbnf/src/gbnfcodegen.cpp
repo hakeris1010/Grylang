@@ -1,16 +1,68 @@
 #include <string>
-#include <iostream>
 #include <sstream>
 #include <algorithm>
-#include <cstdio>
-#include <cctype>
+#include <functional>
 #include <gryltools/stackreader.hpp>
+#include <gryltools/stringtools.hpp>
 #include "gbnf.hpp"
 extern "C" {
     #include <gryltools/hlog.h>
 }
 
 namespace gbnf{
+
+//========================================================//
+
+struct ListOutputParams{
+    size_t tabLeaderSize = 4;
+    size_t oneLineElements = 1;
+    bool bracesInNewLines = true;
+    bool spacesBetweenElements = true;
+};
+
+template <typename InputIterator, typename Callback>
+static void outputInitializerList( std::ostream& output, 
+        InputIterator first, InputIterator last, 
+        Callback callback,
+        const ListOutputParams& props = ListOutputParams() )
+{
+    output<<"{ ";
+    std::string leader(props.tabLeaderSize, ' ');
+
+    if(props.bracesInNewLines)
+        output << "\n" << leader;
+
+    //size_t curpos = output.tellg();
+    register bool firstElem = true;
+    size_t lineElemCnt = 0;
+
+    for( InputIterator it = first; it != last; it++ ){
+        // Put commas
+        if(!firstElem)
+            if(props.spacesBetweenElements)
+                output<<" , ";
+            else
+                output<<",";
+        else
+            firstElem = false;
+
+        // Put newline if needed.
+        if( lineElemCnt >= props.oneLineElements ){
+            output << "\n" << leader;
+            lineElemCnt = 0;
+        } 
+
+        // Print element inside callback.
+        callback( output, *it, props );
+
+        lineElemCnt++;
+    }
+
+    if(props.bracesInNewLines)
+        output << "\n";
+    output<<"}";
+}
+
 
 /*===========================================================//
  * C++ Header file generator.
@@ -31,6 +83,7 @@ private:
     void makeStringProperties( const std::string& varName ); 
     void outputTagTable();
     void outputGrammarTable();
+    void outputGrammarToken( std::ostream& outp,const GrammarRule& a,const ListOutputParams& ps ); 
 
 public:
     /*! Constructor. Just makes sure all necessary data is set checked.
@@ -69,7 +122,7 @@ void GbnfCodeGenerator::makeStringProperties( const std::string& varNameStart ){
     std::transform( includeGuard.begin(), includeGuard.end(), includeGuard.begin(), ::toupper);
     includeGuard.append("_HPP_INCLUDED");
 
-    std::cout<<"VarName: "<<variableName<<", incGuard: "<<includeGuard<<"\n";
+    //output << "VarName: "<<variableName<<", incGuard: "<<includeGuard<<"\n";
 }
 
 
@@ -86,18 +139,60 @@ void GbnfCodeGenerator::generate(){
     // Output TagTbl constructor
     outputTagTable();
 
+    output<<" , \n";
+
     // Output GrammarTbl constructor
     outputGrammarTable();
 
-    //GbnfData nuda( 1, { NonTerminal(1, "kaka"), NonTerminal(2, "baba"), }, {} ); 
-    //output<< nuda;
+    output<<"\n); \n\n";
+
+    /*GbnfData nuda( 1, { NonTerminal(1, "kaka"), NonTerminal(2, "baba"), }, {} ); 
+    output<< nuda;
+
+    output<<"\nTesting gtools::StringTools...\n";
+    std::string nn ("\0\tabc\x01\nzaza\0", 12);
+    
+    gtools::StringTools::escapeSpecials( nn, true );
+
+    output<<"Result: \""<< nn <<"\"\n";
+    */
 }
 
 void GbnfCodeGenerator::outputTagTable(){
-
+    outputInitializerList( this->output, data.tagTable.begin(), data.tagTable.end(), 
+        []( std::ostream& outp, const NonTerminal& a, const ListOutputParams& ps ){
+            outp << "NonTerminal( "<< a.ID <<" , ";
+            if( !a.data.empty() ){
+                std::string res = a.data;
+                gtools::StringTools::escapeSpecials( res, true );
+                outp << "\"" << res <<"\"";
+            }
+            else
+                outp<< "\"\"";
+            outp<<" )";
+        } 
+    );
 }
 
 void GbnfCodeGenerator::outputGrammarTable(){
+    outputInitializerList( this->output, data.grammarTable.begin(), data.grammarTable.end(), 
+        []( std::ostream& outp, const GrammarRule& a, const ListOutputParams& ps ){
+            outp << "GrammarRule( "<< a.ID <<" , ";
+
+            // Now output each of the options, using the same function.
+            /* outputInitializerList( outp, a.options.begin(), a.options.end(),
+                []( std::ostream& outp, const GrammarRule& a, const ListOutputParams& ps ){
+                    outp << "GrammarRule( "<< a.ID <<" , \n";
+                    
+            } ); */
+
+            outp<<" )";
+        } 
+    );            
+}
+
+void GbnfCodeGenerator::outputGrammarToken( std::ostream& outp, 
+            const GrammarRule& a, const ListOutputParams& ps ){
 
 }
 

@@ -158,7 +158,7 @@ struct GbnfData{
     std::vector<GrammarRule> grammarTable;
 
     GbnfData() : tagTable ( NonTerminal::compare ) {}
-    GbnfData( uint16_t flg, std::initializer_list< NonTerminal > tagTbl, 
+    GbnfData( uint16_t flg, const std::initializer_list< NonTerminal >& tagTbl, 
                             const std::initializer_list< GrammarRule >& grammarTbl )
         : flags( flg ), tagTable( tagTbl, NonTerminal::compare ), grammarTable( grammarTbl )
     {}
