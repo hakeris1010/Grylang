@@ -95,29 +95,6 @@ void GbnfCodeGenerator::generate(){
 
     output<<"\n); \n\n";
     output<<"#endif // "<< includeGuard <<"\n";
-
-    /*GbnfData nuda( 1, 
-    { 
-        NonTerminal(1, "kaka"), 
-        NonTerminal(2, "baba"), 
-    }, 
-    {
-        GrammarRule(1, 
-        {
-            GrammarToken( 'r', 0, "", 
-            {
-                GrammarToken( '<', 2, "", 
-                {
-                } )
-            } ),
-            GrammarToken( 'r', 0, "Woot!",
-            {
-            } )
-        } )
-
-    } );
-    output<< nuda;
-    */
 }
 
 void GbnfCodeGenerator::outputTagTable(){
@@ -145,8 +122,6 @@ void GbnfCodeGenerator::outputGrammarTable(){
 
             ListOutputParams ps2 = ps;
             ps2.tabLeaderSize += 4;
-            ps2.bracesInNewLines = true;
-            ps2.oneLineElements = 4;
 
             // Now output the options (tokens), using the specific recursive function.
             outputInitializerList( outp, a.options.begin(), a.options.end(),
@@ -172,10 +147,7 @@ void GbnfCodeGenerator::outputGrammarToken( std::ostream& outp, const GrammarTok
     outputInitializerList( outp, tok.children.begin(), tok.children.end(),
                            outputGrammarToken, ps2 );
     outp<<" )";
-
 }
-
-
 
 //==========================================================//
 
