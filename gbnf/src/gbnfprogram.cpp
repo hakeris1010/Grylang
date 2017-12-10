@@ -29,11 +29,37 @@ const char* testData =
 
 const char* finalData = testData;
 
+static bool debug = true;
+
+struct BnfInputFile{
+    std::shared_ptr< std::istream > is;
+    std::string filename;
+    std::string type;
+
+    BnfInputFile( std::shared_ptr< std::istream > isptr, 
+                  const std::string& fname, const std::string& _type ="" )
+        : is( isptr ), filename( fname ), type( _type )
+    {}
+
+    BnfInputFile( const std::string& fname, 
+                  std::ios_base::openmode mode = std::ios_base::in | std::ios_base::binary, 
+                  const std::string& _type = "" )
+        : is( new std::ifstream( fname, mode ) ), filename( fname ), type( _type )
+    {}
+
+    static bool compare( const BnfInputFile& a, const BnfInputFile& b ){
+        return a.filename < b.filename;
+    }
+};
+
 int main(int argc, char** argv){
     // Properties
-    std::map< std::shared_ptr< std::istream >, std::string > inFiles;
+    std::set< BnfInputFile, bool(*)(const BnfInputFile&, const BnfInputFile&) > 
+        inFiles ( BnfInputFile::compare );
 
     std::ofstream outFile;
+    std::string outFileName;
+
     bool verbose = false;
     bool megaVerbose = false;
     bool convertToBnf = false;
@@ -67,19 +93,19 @@ int main(int argc, char** argv){
             else if((!strcmp(argv[i], "-o") || !strcmp(argv[i], "--outfile")) && i < argc-1){
                 i++;
                 outFile.open( argv[i], std::ios::out | std::ios::binary );
+
                 if(!outFile.is_open())
                     std::cerr<<"Can't open output file \""<< argv[i] <<"\"!\n";
+                else
+                    outFileName = std::string( argv[i] );
             }
             else{ // If any other argument, we will treat it as an input file.
                 auto ff = std::make_shared< std::ifstream >( 
                     argv[i], std::ios::in | std::ios::binary
                 ); 
 
-                if( ff->is_open() ){
-                    inFiles.insert( 
-                        std::pair< std::shared_ptr<std::istream>, std::string >( ff, argv[i] ) 
-                    );
-                }
+                if( ff->is_open() )
+                    inFiles.insert( BnfInputFile( ff, argv[i] ) );
                 else
                     std::cerr<<"Can't open input file \""<< argv[i] <<"\"!\n";
             }
@@ -91,11 +117,25 @@ int main(int argc, char** argv){
 
     // Fix input if no found - cin if no present.
     if( inFiles.empty() ){
-        // When making pointer to cin, set deallocator to empty function.
-        inFiles.insert( std::pair<std::shared_ptr<std::istream>, std::string>(
-             std::shared_ptr<std::istream>( &std::cin, [](void* p){} ),
-             "std_standard_input"
-        ) );
+        if( !debug ){
+            // When making pointer to cin, set deallocator to empty function.
+            inFiles.insert( BnfInputFile(
+                 std::shared_ptr<std::istream>( &std::cin, [](void* p){} ),
+                 "std_standard_input"
+            ) );
+        } 
+        else{ // In debug mode . . . 
+            inFiles.insert( BnfInputFile(
+                std::make_shared<std::istringstream>( finalData, 
+                    std::ios::in | std::ios::binary ),
+                "test_stringStreamData"
+            ) );
+        }
+    }
+
+    // Setup output file name if we haven't done already.
+    if( outFileName.empty() ){
+        outFileName = (inFiles.begin())->filename;
     }
 
     // Output everything if mega verbose.
@@ -105,25 +145,19 @@ int main(int argc, char** argv){
         std::cout<<" convertToBnf: "<<convertToBnf<<", fixRecursion: "<<fixRecursion<<"\n\n";
     }
 
-    // In debug mode . . . 
-    inFiles.insert( std::pair<std::shared_ptr<std::istream>, std::string>(
-            std::make_shared<std::istringstream>( finalData, std::ios::in | std::ios::binary ),
-            "test_stringStreamData"
-        )
-    );
-
-    gbnf::CodeGenerator gen;
+    
+    gbnf::CodeGenerator gen( output, outFileName );
     gen.outputStart();
 
     // Run through each input, and produce an output
     for( auto& a : inFiles ){
         gbnf::GbnfData data;
-        gbnf::convertToGbnf( data, *(a.first()) );
+        gbnf::convertToGbnf( data, *(a.is) );
     
-        gen.generateConstructionCode( data, a.second() ); 
+        gen.generateConstructionCode( data, a.filename ); 
     }
 
-    gen::outputEnd();
+    gen.outputEnd();
 
     //std::cout<<"\nGBNF Result Data: \n";
     //data.print(std::cout);

@@ -70,9 +70,9 @@
 #include <set>
 #include <functional>
 #include <vector>
-#include <cstdint>
 #include <istream>
 #include <ostream>
+#include <memory>
 
 namespace gbnf{
 
@@ -88,11 +88,9 @@ struct NonTerminal{
     NonTerminal( short _ID, const std::string& _data ) : ID( _ID ), data( _data ) {}
 
     // Comparation function.
-    static bool compare(NonTerminal a, NonTerminal b){ 
+    static bool compare(const NonTerminal& a, const NonTerminal& b){ 
         return a.ID < b.ID; 
     }
-
-    // void printConstructionCode( std::ostream& o );
 };
 
 /*! Token structure.
@@ -124,7 +122,6 @@ struct GrammarToken{
     static std::string getTypeString( char typ );
      
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const ;
-    // void printConstructionCode( std::ostream& o );
 };
 
 inline std::ostream& operator<< (std::ostream& os, const GrammarToken& tok){
@@ -146,7 +143,6 @@ struct GrammarRule{
     {}
 
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const ;
-    // void printConstructionCode( std::ostream& o );
 };
 
 inline std::ostream& operator<< (std::ostream& os, const GrammarRule& rule){
@@ -159,7 +155,7 @@ inline std::ostream& operator<< (std::ostream& os, const GrammarRule& rule){
  */ 
 struct GbnfData{
     uint16_t flags = 0;
-    std::set<NonTerminal, std::function<bool (NonTerminal, NonTerminal)>> tagTable; 
+    std::set<NonTerminal, std::function<bool (const NonTerminal&, const NonTerminal&)>> tagTable; 
     std::vector<GrammarRule> grammarTable;
 
     GbnfData() : tagTable ( NonTerminal::compare ) {}
@@ -169,7 +165,6 @@ struct GbnfData{
     {}
 
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const;
-    // void printConstructionCode( std::ostream& o );
 };
 
 inline std::ostream& operator<< (std::ostream& os, const GbnfData& rule){
@@ -181,21 +176,21 @@ inline std::ostream& operator<< (std::ostream& os, const GbnfData& rule){
  *  Contains functions to use when converting to/from EBNF and parsing data.
  *  No matching is done there. Only conversion to/from the gBNF format.
  */
-
-class GbnfCodeGenerator;
+class CodeGenerator_impl;
 
 class CodeGenerator{
 private:
-    GbnfCodeGenerator& impl;
+    //std::unique_ptr< CodeGenerator_impl > impl;
+    CodeGenerator_impl* impl;
 
 public:
     /*! Constructor. Just makes sure all necessary data is set checked.
      */  
-    CodeGenerator(std::ostream& outp);
+    CodeGenerator(std::ostream& outp, const std::string& fname);
+    ~CodeGenerator();
 
     void outputStart();
     void outputEnd();
-
     void generateConstructionCode( const GbnfData& gbData, const std::string& varName );
 };
 
