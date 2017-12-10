@@ -1,66 +1,66 @@
-<trans_unit> ::== {<ext_object>}*
+<trans_unit> ::== {<ext_object>}* ;
 
 <ext_object> ::== <declaration>
                 | <ext_variable_definition>
                 | <function_definition> 
-                | <class_definition>
+                | <class_definition> ;
 
 <declaration> ::== <variable_declaration>
                  | <function_declaration>
-                 | <class_declaration> 
+                 | <class_declaration> ;
 
 
-<ext_variable_definition> ::== <variable_declaration> "=" <expression> 
+<ext_variable_definition> ::== <variable_declaration> "=" <expression> ;
 
-<function_definition> ::== <function_declaration> <code_block>
+<function_definition> ::== <function_declaration> <code_block> ;
 
-<class_definition> ::== <class_declaration> <class_block>
+<class_definition> ::== <class_declaration> <class_block> ;
 
 
 
-<variable_declaration> ::== <typespec> <ident>
+<variable_declaration> ::== <typespec> <ident> ;
 
-<function_declaration> ::== "fun" <ident> <param_list> {":" <typespec>}?
+<function_declaration> ::== "fun" <ident> <param_list> {":" <typespec>}? ;
 
-<class_declaration> ::== "class" <ident> <class_inheritance>
+<class_declaration> ::== "class" <ident> <class_inheritance> ;
 
-<class_inheritance> ::== <extend_specifier> <ident> {"," <ident>}*
+<class_inheritance> ::== <extend_specifier> <ident> {"," <ident>}* ;
 
 <extend_specifier> ::== "extends"
-                      | "implements"
+                      | "implements" ;
 
 
-<code_block> ::== "{" {<statement>}* "}"
+<code_block> ::== "{" {<statement>}* "}" ;
 
-<class_block> ::== "{" { {<class_access_spec>}* <class_object> }* "}"
+<class_block> ::== "{" { {<class_access_spec>}* <class_object> }* "}" ;
 
 <class_access_spec> ::== "private"
                        | "protected"
                        | "public"  
                        | "override"
-                       | "final" 
+                       | "final" ;
 
 <class_object> ::== <ext_object>
                   | <class_constructor>
-                  | <class_destructor>
+                  | <class_destructor> ;
                     
-<class_constructor> ::== <ident> <param_list>
+<class_constructor> ::== <ident> <param_list> ;
 
-<class_destructor> ::== "~" <ident> "(" ")"
+<class_destructor> ::== "~" <ident> "(" ")" ;
 
-<param_list> ::== "(" {<variable_declaration>}? {"," <variable_declaration>}* ")"
+<param_list> ::== "(" {<variable_declaration>}? {"," <variable_declaration>}* ")" ;
 
 
 
-<typespec> ::== <type_qualifier> <type_specifier>
+<typespec> ::== <type_qualifier> <type_specifier> ;
 
 <type_qualifier> ::== "const" 
-                    | "volatile"
+                    | "volatile" ;
 
-<type_specifier> ::== <direct_typespec> { "*" }*
+<type_specifier> ::== <direct_typespec> { "*" }* ;
 
 <direct_typespec> ::== <basic_typespec>
-                     | <array_typespec>
+                     | <array_typespec> ;
 
 <basic_typespec> ::== "char"  
                     | "int"
@@ -72,11 +72,11 @@
                     | "void"
                     | "fun"
                     | "var"
-                    | <ident>
+                    | <ident> ;
 
-<array_typespec> ::== <basic_typespec> { "[" {<const_expression>}? "]" }+
+<array_typespec> ::== <basic_typespec> { "[" {<const_expression>}? "]" }+ ;
 
-<const_expression> ::== <expression>
+<const_expression> ::== <expression> ;
 
 <statement> ::==  <code_block>
                 | <selection_stat>
@@ -84,22 +84,22 @@
                 | <jump_stat>
                 | <labeled_stat>
                 | <variable_declaration>
-                | <expression>
+                | <expression> ;
 
 #--------------------------------------------
 # Expressions 
-#--------------------------------------------
+#-------------------------------------------- ;
 
 <expression> ::== <assignment_expression>
                 | <logical_or_expression>
                 | <initialization_expression>
-                | <range_expression>
+                | <range_expression> ;
 
-<initialization_expression> ::== "{" {<expression>}? { "," <expression> }* "}"
+<initialization_expression> ::== "{" {<expression>}? { "," <expression> }* "}" ;
 
-<range_expression> ::== <expression> ".." <expression>
+<range_expression> ::== <expression> ".." <expression> ;
 
-<assignment_expression> ::== <ident> <assignment_operator> <expression>
+<assignment_expression> ::== <ident> <assignment_operator> <expression> ;
 
 <assignment_operator> ::== "="
                          | "+="
@@ -110,7 +110,7 @@
                          | ">>="
                          | "&="
                          | "^="
-                         | "|="
+                         | "|=" ;
 
 # Expression operator priorities (Reversed):
 # 1. Logical OR
@@ -125,10 +125,10 @@
 
 
 <logical_or_expression> ::== <logical_and_expression>
-                           | <logical_or_expression> "||" <logical_and_expression>
+                           | <logical_or_expression> "||" <logical_and_expression> ;
 
 <logical_and_expression> ::== <relational_equality_expression>
-                            | <logical_and_expression> "&&" <relational_equality_expression>
+                            | <logical_and_expression> "&&" <relational_equality_expression> ;
 
 <relational_equality_expression> ::== <bitwise_or_expression>
                                     | <relational_equality_expression> "==" <bitwise_or_expression>
@@ -136,29 +136,29 @@
                                     | <relational_equality_expression> ">=" <bitwise_or_expression>
                                     | <relational_equality_expression> "<=" <bitwise_or_expression>
                                     | <relational_equality_expression> ">" <bitwise_or_expression>
-                                    | <relational_equality_expression> "<" <bitwise_or_expression>
+                                    | <relational_equality_expression> "<" <bitwise_or_expression> ;
 
 <bitwise_or_expression> ::== <bitwise_xor_expression>
-                           | <bitwise_or_expression> "|" <bitwise_xor_expression>
+                           | <bitwise_or_expression> "|" <bitwise_xor_expression> ;
 
 <bitwise_xor_expression> ::== <bitwise_and_expression> 
-                            | <bitwise_xor_expression> "^" <bitwise_and_expression>
+                            | <bitwise_xor_expression> "^" <bitwise_and_expression> ;
 
 <bitwise_and_expression> ::== <bitwise_shift_expression> 
-                            | <bitwise_and_expression> "&" <bitwise_and_expression>
+                            | <bitwise_and_expression> "&" <bitwise_and_expression> ;
 
 <bitwise_shift_expression> ::== <arithm_addition_expression>
                               | <bitwise_shift_expression> "<<" <arithm_addition_expression>
-                              | <bitwise_shift_expression> ">>" <arithm_addition_expression>
+                              | <bitwise_shift_expression> ">>" <arithm_addition_expression> ;
 
 <arithm_addition_expression> ::== <arithm_multiplication_expression>
                                | <arithm_addition_expression> "+" <arithm_multiplication_expression>
-                               | <arithm_addition_expression> "-" <arithm_multiplication_expression>
+                               | <arithm_addition_expression> "-" <arithm_multiplication_expression> ;
 
 <arithm_multiplication_expression> ::== <unary_expression>
                                       | <arithm_multiplication_expression> "*" <unary_expression>
                                       | <arithm_multiplication_expression> "/" <unary_expression>
-                                      | <arithm_multiplication_expression> "%" <unary_expression>
+                                      | <arithm_multiplication_expression> "%" <unary_expression> ;
 
 <unary_expression> ::== <secondary_expression>
                       | "--" <secondary_expression>                 # decrement
@@ -170,75 +170,75 @@
                       | "(" <typespec> ")" <secondary_expression>   # Type Casting
                       | "*" <secondary_expression>                  # DePointerization
                       | "&" <secondary_expression>                  # Pointerization
-                      | "sizeof" <secondary_expression>             # Size of memory block
+                      | "sizeof" <secondary_expression>           ; # Size of memory block
 
 # Secondary expression - function calls, array member access, class member access/usage.
-# Note that we allow Calling/DeArrayzing/Recursive-accessing the class elements.
+# Note that we allow Calling/DeArrayzing/Recursive-accessing the class elements. 
 
 <secondary_expression> ::== <primary_expression>
                           | <function_call>
                           | <array_access>
                           | <secondary_expression> "." <secondary_expression>  
                           | <secondary_expression> "->" <secondary_expression>
-                          | <print_call> 
+                          | <print_call> ;
 
 <primary_expression> ::== <ident> 
                         | <constant>
                         | <string>
-                        | "(" <expression> ")"
+                        | "(" <expression> ")" ;
 
 <constant> ::== <integer_constant>
               | <character_constant>
-              | <floating_constant>
+              | <floating_constant> ;
 
-<function_call> ::== <secondary_expression> "(" { {<expression>}? {"," <expression>}* }* ")"
+<function_call> ::== <secondary_expression> "(" { {<expression>}? {"," <expression>}* }* ")" ;
                       
-<array_access> ::== <secondary_expression> { "[" {<expression>}? "]" }+
+<array_access> ::== <secondary_expression> { "[" {<expression>}? "]" }+ ;
 
 #--------------------------------------------
 # Conditionals and Loops
-#--------------------------------------------
+#-------------------------------------------- 
 
 <selection_stat> ::== <if_statement>
-                    | <switch_statement>
+                    | <switch_statement> ;
 
 <if_statement> ::== "if" "(" <expression> ")" <statement> 
                         {"else if" "(" <expression> ")" <statement>}*
-                        {"else" <statement>}?
+                        {"else" <statement>}? ;
 
 <switch_statement> ::== "switch" "(" <expression> ")" 
                         "{" {"case" <expression> ":" {<statement>}* }* 
-                            {"default" ":" {<statement>}* }? "}"
+                            {"default" ":" {<statement>}* }? "}" ;
                     
 <iteration_stat> ::== <while_loop> 
                     | <for_loop>
-                    | <foreach_loop>
+                    | <foreach_loop> ;
 
-<while_loop> ::== "while" "(" {<expression>}? ")" <statement>
+<while_loop> ::== "while" "(" {<expression>}? ")" <statement> ;
 
-<for_loop> ::== "for" "(" {<expression>}? ";" {<expression>}? ";" {<expression>}? ")" <statement>
+<for_loop> ::== "for" "(" {<expression>}? ";" {<expression>}? ";" {<expression>}? ")" <statement> ;
 
-<foreach_loop> ::== "foreach" "(" {<ident> "in" <expression>}? ")"
+<foreach_loop> ::== "foreach" "(" {<ident> "in" <expression>}? ")" ;
 
 
 <jump_stat> ::== "break"
                | "goto" <ident> 
-               | "return" {<expression>}? 
+               | "return" {<expression>}? ;
 
-<labeled_stat> ::== <ident> ":"
+<labeled_stat> ::== <ident> ":" ;
 
 #----------------------------
 # HardCoded Libfunctions
-#----------------------------
+#---------------------------- ;
 
 <print_call> ::== "print" "(" <expression> ")"
-                | "println" "(" <expression> ")"
+                | "println" "(" <expression> ")" ;
 
-<input_call> ::== "input" "(" <string> "," <addressable> ")"
+<input_call> ::== "input" "(" <string> "," <addressable> ")" ;
 
 <addressable> ::== <ident>
                  | <secondary_expression> "." <ident>
                  | <secondary_expression> "->" <ident>
-                 | <array_access>
+                 | <array_access> ;
 
 
