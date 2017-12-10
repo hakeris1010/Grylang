@@ -210,7 +210,7 @@ public:
  * @param input - the input stream to read from.
  * @throws runtime_error if fatal error occured.
  */ 
-void convertToGbnf(GbnfData& data, std::istream& input);
+void convertToGbnf(GbnfData& data, std::istream& input, int debugMode = 0);
 
 /*! Function makes a C/C++ header file containing a const GbnfData structure which contains
  *  the gBNF data from the 'data' structure.

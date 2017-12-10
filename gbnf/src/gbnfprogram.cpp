@@ -157,7 +157,7 @@ int main(int argc, char** argv){
     // Run through each input, and produce an output
     for( auto& a : inFiles ){
         gbnf::GbnfData data;
-        gbnf::convertToGbnf( data, *(a.is) );
+        gbnf::convertToGbnf( data, *(a.is), (megaVerbose ? 2 : (verbose ? 1 : 0)) );
     
         gen.generateConstructionCode( data, a.filename ); 
     }
