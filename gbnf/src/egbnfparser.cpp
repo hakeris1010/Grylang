@@ -236,6 +236,10 @@ int ParseInput::parseGrammarToken( GrammarToken& tok, int recLevel, char endChar
 
         return RECURSIVE_ENDCHAR_REACHED;  // Returned from a recursion.
     }
+    // Check if comment start - skip until da end.
+    else if( c == '#' ){
+        reader.skipUntilChar( '\n' );
+    }
     // Other character - just Throw an Error and be happy.
     else 
         throwError( "Wrong token start symbol: "+std::string(1, c) );
@@ -267,6 +271,12 @@ bool ParseInput::parseGrammarOption( GrammarToken& tok ){
         // Whole rule end - return false, don't expect more options. 
         else if( c == ';' )
             return false;
+
+        // Check if comment start - skip until endline.
+        else if( c == '#' ){
+            reader.skipUntilChar('\n');
+            continue;
+        }
 
         // Other character means that token start occured. Put it back to stream.
         reader.putChar( c );
@@ -428,16 +438,4 @@ void convertToGbnf(GbnfData& data, std::istream& input){
 
 } // namespace gbnf end.
 
-/*
- * Set, Close and Get the current LogFile
- FILE* hlogSetFile(const char* fname, char mode);
- void hlogSetFileFromFile(FILE* file, char mode);
- void hlogCloseFile();
- FILE* hlogGetFile();
- char hlogIsActive();
- void hlogSetActive(char val);
- 
- * Write to the LogFile (Printf style) 
- void logf(dbg, const char* fmt, ... );
-*/
 

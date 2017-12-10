@@ -29,7 +29,7 @@ const char* testData =
 
 const char* finalData = testData;
 
-static bool debug = true;
+static bool debug = false;
 
 struct BnfInputFile{
     std::shared_ptr< std::istream > is;
@@ -76,6 +76,11 @@ int main(int argc, char** argv){
                 verbose = true;
                 megaVerbose = true;
             }
+
+            else if( !strcmp(argv[i], "--debug=true") || !strcmp(argv[i], "--debug") )
+                debug = true;
+            else if( !strcmp(argv[i], "--debug=false") || !strcmp(argv[i], "--nodebug") )
+                debug = false;
 
             else if(!strcmp(argv[i], "--convert-to-bnf=true") || 
                     !strcmp(argv[i], "--convert-to-bnf"))
@@ -140,9 +145,9 @@ int main(int argc, char** argv){
 
     // Output everything if mega verbose.
     if( megaVerbose ){
-        std::cout<<"Final setup:\n inFiles: "<< inFiles.size() <<"\n";
+        std::cout<<"Final setup:\n inFiles: "<< inFiles.size() <<"\n debug: "<<debug<<"\n";
         std::cout<<" verbose: "<<verbose<<"\n megaVerbose: "<<megaVerbose<<"\n";
-        std::cout<<" convertToBnf: "<<convertToBnf<<", fixRecursion: "<<fixRecursion<<"\n\n";
+        std::cout<<" convertToBnf: "<<convertToBnf<<"\n fixRecursion: "<<fixRecursion<<"\n\n";
     }
 
     
