@@ -12,17 +12,6 @@ extern "C" {
 
 namespace gbnf{
 
-/*! Base class for implementations
- */
-class CodeGenerator_impl{
-public:
-    virtual ~CodeGenerator_impl(){}
-
-    virtual void outputStart() = 0;
-    virtual void outputEnd() = 0;
-    virtual void generate(const GbnfData& gb, const std::string& vn ) = 0;
-};
-
 /*===========================================================//
  * C++ Header file generator.
  * - Works by taking a GbnfData variable, and outputting it's construction
@@ -181,10 +170,6 @@ void GbnfCodeGenerator::outputGrammarToken( std::ostream& outp, const GrammarTok
 CodeGenerator::CodeGenerator( std::ostream& outp, const std::string& filename )
     : impl( new GbnfCodeGenerator( outp, filename ) )
 {}
-
-CodeGenerator::~CodeGenerator(){
-    delete impl;
-}
 
 void CodeGenerator::outputStart(){
     impl->outputStart();

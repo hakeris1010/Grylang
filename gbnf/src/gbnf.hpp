@@ -176,18 +176,29 @@ inline std::ostream& operator<< (std::ostream& os, const GbnfData& rule){
  *  Contains functions to use when converting to/from EBNF and parsing data.
  *  No matching is done there. Only conversion to/from the gBNF format.
  */
-class CodeGenerator_impl;
 
+/*! Base class for CodeGenerator implementations
+ *  Is launched from private space.
+ */
+class CodeGenerator_impl{
+public:
+    virtual ~CodeGenerator_impl(){}
+
+    virtual void outputStart() = 0;
+    virtual void outputEnd() = 0;
+    virtual void generate(const GbnfData& gb, const std::string& vn ) = 0;
+};
+
+/*!
+ * Main public CodeGenerator class.
+ * - Creates C++ files with construction code of the GBNF structures passed.
+ */
 class CodeGenerator{
 private:
-    //std::unique_ptr< CodeGenerator_impl > impl;
-    CodeGenerator_impl* impl;
+    std::unique_ptr< CodeGenerator_impl > impl;
 
 public:
-    /*! Constructor. Just makes sure all necessary data is set checked.
-     */  
     CodeGenerator(std::ostream& outp, const std::string& fname);
-    ~CodeGenerator();
 
     void outputStart();
     void outputEnd();
