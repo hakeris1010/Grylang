@@ -151,6 +151,27 @@ void GbnfCodeGenerator::outputGrammarToken( std::ostream& outp, const GrammarTok
 
 //==========================================================//
 
+/*! Code Generator's public interface methods.
+ */ 
+CodeGenerator::CodeGenerator(std::ostream& outp)
+    : impl( GbnfCodeGenerator( outp ) ) {
+
+}
+
+void CodeGenerator::outputStart(){
+
+}
+void CodeGenerator::outputEnd(){
+
+}
+
+void CodeGenerator::generateConstructionCode( 
+        const GbnfData& gbData, const std::string& varName )
+{
+
+}
+
+
 /*! GBNF TOOLS.
  *  Generates a C++ header file from GBNF data passed, and outputs to a stream.
  */ 

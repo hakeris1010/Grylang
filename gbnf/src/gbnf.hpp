@@ -182,6 +182,23 @@ inline std::ostream& operator<< (std::ostream& os, const GbnfData& rule){
  *  No matching is done there. Only conversion to/from the gBNF format.
  */
 
+class GbnfCodeGenerator;
+
+class CodeGenerator{
+private:
+    GbnfCodeGenerator& impl;
+
+public:
+    /*! Constructor. Just makes sure all necessary data is set checked.
+     */  
+    CodeGenerator(std::ostream& outp);
+
+    void outputStart();
+    void outputEnd();
+
+    void generateConstructionCode( const GbnfData& gbData, const std::string& varName );
+};
+
 /*! Function uses the EBNF format input from the 'input' stream to fill up the 'data' structure. 
  * @param data - the empty GBNF structure to fill up.
  * @param input - the input stream to read from.

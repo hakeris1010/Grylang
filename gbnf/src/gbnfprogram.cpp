@@ -2,7 +2,9 @@
 #include <fstream>
 #include <sstream>
 #include <memory>
+#include <functional>
 #include <cstring>
+#include <map>
 #include "gbnf.hpp"
 
 const char* testData = 
@@ -29,7 +31,8 @@ const char* finalData = testData;
 
 int main(int argc, char** argv){
     // Properties
-    std::vector< std::unique_ptr<std::istream> > inFiles;
+    std::map< std::shared_ptr< std::istream >, std::string > inFiles;
+
     std::ofstream outFile;
     bool verbose = false;
     bool megaVerbose = false;
@@ -65,16 +68,20 @@ int main(int argc, char** argv){
                 i++;
                 outFile.open( argv[i], std::ios::out | std::ios::binary );
                 if(!outFile.is_open())
-                    std::cerr<"Can't open output file \""<< argv[i] <<"\"!\n";
+                    std::cerr<<"Can't open output file \""<< argv[i] <<"\"!\n";
             }
             else{ // If any other argument, we will treat it as an input file.
-                inFiles.push_back( std::make_unique< std::istream >(
-                    std::ifstream( argv[i], std::ios::in | std::ios::binary ) 
-                ) );
-                if( ! *(inFiles[ inFiles.size() - 1 ].get()).is_open() ){
-                    std::cerr<<"Can't open input file \""<< argv[i] <<"\"!\n";
-                    inFiles.pop_back();
+                auto ff = std::make_shared< std::ifstream >( 
+                    argv[i], std::ios::in | std::ios::binary
+                ); 
+
+                if( ff->is_open() ){
+                    inFiles.insert( 
+                        std::pair< std::shared_ptr<std::istream>, std::string >( ff, argv[i] ) 
+                    );
                 }
+                else
+                    std::cerr<<"Can't open input file \""<< argv[i] <<"\"!\n";
             }
         }
     }
@@ -84,10 +91,11 @@ int main(int argc, char** argv){
 
     // Fix input if no found - cin if no present.
     if( inFiles.empty() ){
-        // When getting pointer to cin, set deallocator to empty function.
-        inFiles.push_back( 
-            std::make_unique< std::istream >( &std::cin, []( void* p ){} );
-        );
+        // When making pointer to cin, set deallocator to empty function.
+        inFiles.insert( std::pair<std::shared_ptr<std::istream>, std::string>(
+             std::shared_ptr<std::istream>( &std::cin, [](void* p){} ),
+             "std_standard_input"
+        ) );
     }
 
     // Output everything if mega verbose.
@@ -97,16 +105,31 @@ int main(int argc, char** argv){
         std::cout<<" convertToBnf: "<<convertToBnf<<", fixRecursion: "<<fixRecursion<<"\n\n";
     }
 
-    gbnf::GbnfData data;
-    std::istringstream strm(finalData, std::ios::in | std::ios::binary);
+    // In debug mode . . . 
+    inFiles.insert( std::pair<std::shared_ptr<std::istream>, std::string>(
+            std::make_shared<std::istringstream>( finalData, std::ios::in | std::ios::binary ),
+            "test_stringStreamData"
+        )
+    );
+
+    gbnf::CodeGenerator gen;
+    gen.outputStart();
+
+    // Run through each input, and produce an output
+    for( auto& a : inFiles ){
+        gbnf::GbnfData data;
+        gbnf::convertToGbnf( data, *(a.first()) );
     
-    gbnf::convertToGbnf( data, strm );
+        gen.generateConstructionCode( data, a.second() ); 
+    }
+
+    gen::outputEnd();
 
     //std::cout<<"\nGBNF Result Data: \n";
     //data.print(std::cout);
 
     //std::cout<<"\n==============================\nGenerating C++ code...\n";
-    gbnf::generateCode( data, std::cout, "parsingData");
+    //gbnf::generateCode( data, output, "parsingData");
 
     return 0;
 }
