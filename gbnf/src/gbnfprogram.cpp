@@ -27,7 +27,42 @@ const char* testData =
   "                      | \"implements\"           \n" 
   "<eee>                                            \n";
 
-const char* finalData = testData;
+/*"<keyword> ::== \"char\" | \"int\" | \"int16\" | \"int32\" | \"int64\" | \"float\" | \"double\" | \"void\" | \"var\"\n"
+"             | \"fun\" | \"class\" | \"private\" | \"protected\" | \"public\" | \"extends\" | \"implements\" \n"
+"             | \"const\" | \"volatile\" | \"if\" | \"else\" | \"switch\" | \"case\" | \"default\" | \"while\" \n"
+"             | \"for\" | \"foreach\" | \"in\" | \"break\" | \"goto\" | \"return\" ;\n"
+"\n"
+"<ident> ::== \"[a-zA-Z_]\"{<w>}* ;\n"
+"\n"
+"<integer_constant> ::== {<d>}+ ;\n"
+"\n" 
+*/
+
+const char* testData2 = 
+"<character_constant> ::== \"\\'\" {<p>}* \"\\'\" ;\n" ;
+
+/*"\n"
+"<floating_constant> ::== {<d>}+ \".\" {<d>}+ ;\n"
+"\n"
+"<string> ::== \"\\\"\" {<any>}* \"\\\"\" ;\n"
+"\n"
+"<comment> ::== \"//\" {<any>}*\n";
+*/
+//"             | \"/*\" {<any>}* \"*/\" ;\n"
+/*"\n"
+"<d> ::== \"[0-9]\" ;\n"
+"<w> ::== \"[a-zA-Z0-9_]\" ;\n"
+"<p> ::== \"[\\x20-\\x7e]\" ;\n"
+"<any> ::== \"[\\x00-\\xFF]\" ;\n"
+"\n"
+"<operator> ::== \"{\" | \"}\" | \"[\" | \"]\" | \"(\" | \")\" | \".\" | \",\" | \":\" | \";\" \n"
+"              | \"~\" | \"^\" | \"&\" | \"|\" | \"!\" | \"+\" | \"-\" | \"*\" | \"/\" | \"%\" \n"
+"              | \"=\" | \"<\" | \">\" | \"||\" | \"&&\" | \"++\" | \"--\"\n"
+"              | \"*=\" | \"+=\" | \"-=\" | \"/=\" | \"&=\" | \"|=\" | \"^=\" | \"%=\"\n"
+"              | \"!=\" | \"==\" | \"<=\" | \">=\" | \"->\" | \">>\" | \"<<\" ;";
+*/
+
+const char* finalData = testData2;
 
 static bool debug = false;
 
@@ -159,7 +194,8 @@ int main(int argc, char** argv){
         gbnf::GbnfData data;
         gbnf::convertToGbnf( data, *(a.is), (megaVerbose ? 2 : (verbose ? 1 : 0)) );
     
-        gen.generateConstructionCode( data, a.filename ); 
+		std::cout<<"\n"<< data <<"\n";
+        //gen.generateConstructionCode( data, a.filename ); 
     }
 
     gen.outputEnd();
