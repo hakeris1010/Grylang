@@ -21,6 +21,9 @@ static void getRuleFromToken( const GrammarToken& tok, std::vector<GrammarRule>&
         token.type != GrammarToken::REGEX_STRING &&
         token.type != GrammarToken::ROOT_TOKEN )
     {
+        data.tagTable.insert( NonTerminal( data.lastTagID, 
+            "__tmp_convert_to_bnf_"+std::to_string(data.lastTagID) ) 
+        );
         rules.push_back( GrammarRule( 
     }
 
