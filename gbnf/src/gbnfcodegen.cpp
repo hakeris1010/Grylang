@@ -150,7 +150,8 @@ void GbnfCodeGenerator::outputGrammarToken( std::ostream& outp, const GrammarTok
     std::string res = tok.data;
     gtools::StringTools::escapeSpecials( res, true );
 
-    outp << "GrammarToken( \'"<< tok.type <<"\', "<< tok.id <<", \""<< res <<"\", ";
+    outp << "GrammarToken( "<< GrammarToken::getTypeString( tok.type, true );
+    outp << ", "<< tok.id <<", \""<< res <<"\", ";
 
     ListOutputParams ps2 = ps;
     ps2.tabLeaderSize += 4;

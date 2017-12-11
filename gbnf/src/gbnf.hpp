@@ -119,7 +119,7 @@ struct GrammarToken{
         : type( _type ), id( _id ), data( _data ), children( _children )
     {}
 
-    static std::string getTypeString( char typ );
+    static std::string getTypeString( char typ, bool codeMode = false );
      
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const ;
 };

@@ -423,17 +423,17 @@ void GrammarToken::print( std::ostream& os, int mode, const std::string& ld ) co
         a.print( os, mode, ld+"- " );
 }
 
-std::string GrammarToken::getTypeString( char typ ){
+std::string GrammarToken::getTypeString( char typ, bool codeMode ){
     switch( typ ){
-        case GROUP_ONE:         return "GROUP_ONE";
-        case GROUP_OPTIONAL:    return "GROUP_OPTIONAL";
-        case GROUP_REPEAT_NONE: return "GROUP_REPEAT_NONE";
-        case GROUP_REPEAT_ONE:  return "GROUP_REPEAT_ONE";
-        case REGEX_STRING:      return "REGEX_STRING";
-        case TAG_ID:            return "TAG_ID";
-        case ROOT_TOKEN:        return "Option (ROOT_TOKEN)";
+        case GROUP_ONE:         return (codeMode ? "GrammarToken::GROUP_ONE"        : "GROUP_ONE"           );
+        case GROUP_OPTIONAL:    return (codeMode ? "GrammarToken::GROUP_OPTIONAL"   : "GROUP_OPTIONAL"      );
+        case GROUP_REPEAT_NONE: return (codeMode ? "GrammarToken::GROUP_REPEAT_NONE": "GROUP_REPEAT_NONE"   );
+        case GROUP_REPEAT_ONE:  return (codeMode ? "GrammarToken::GROUP_REPEAT_ONE" : "GROUP_REPEAT_ONE"    );
+        case REGEX_STRING:      return (codeMode ? "GrammarToken::REGEX_STRING"     : "REGEX_STRING"        );
+        case TAG_ID:            return (codeMode ? "GrammarToken::TAG_ID"           : "TAG_ID"              );
+        case ROOT_TOKEN:        return (codeMode ? "GrammarToken::ROOT_TOKEN"       : "Option (ROOT_TOKEN)" );
     }
-    return "INVALID";
+    return (codeMode ? "0" : "INVALID");
 }
 
 /*! GBNF TOOLS. 

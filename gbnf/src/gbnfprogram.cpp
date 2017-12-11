@@ -95,8 +95,7 @@ int main(int argc, char** argv){
     std::ofstream outFile;
     std::string outFileName;
 
-    bool verbose = false;
-    bool megaVerbose = false;
+    int verbosity = 0;
     bool convertToBnf = false;
     bool fixRecursion = true;
 
@@ -104,13 +103,11 @@ int main(int argc, char** argv){
     if(argc > 1){
         for(int i=1; i<argc; i++){
             // Check for flag switches
-            if((!strcmp(argv[i], "-v") || !strcmp(argv[i], "--verbose")) && !verbose)
-                verbose = true;
-            else if(((!strcmp(argv[i], "-v") || !strcmp(argv[i], "--verbose")) && verbose) ||
-                    (!strcmp(argv[i], "-vv") || !strcmp(argv[i], "--mega-verbose")) ){
-                verbose = true;
-                megaVerbose = true;
-            }
+            if((!strcmp(argv[i], "-v") || !strcmp(argv[i], "--verbose")) && !verbosity)
+                verbosity = 1;
+            else if(((!strcmp(argv[i], "-v") || !strcmp(argv[i], "--verbose")) && verbosity) ||
+                    (!strcmp(argv[i], "-vv") || !strcmp(argv[i], "--mega-verbose")) )
+                verbosity = 2;
 
             else if( !strcmp(argv[i], "--debug=true") || !strcmp(argv[i], "--debug") )
                 debug = true;
@@ -179,32 +176,28 @@ int main(int argc, char** argv){
     }
 
     // Output everything if mega verbose.
-    if( megaVerbose ){
-        std::cout<<"Final setup:\n inFiles: "<< inFiles.size() <<"\n debug: "<<debug<<"\n";
-        std::cout<<" verbose: "<<verbose<<"\n megaVerbose: "<<megaVerbose<<"\n";
-        std::cout<<" convertToBnf: "<<convertToBnf<<"\n fixRecursion: "<<fixRecursion<<"\n\n";
+    if( verbosity > 0 ){
+        std::cout<<"Final setup:\n inFiles: "<< inFiles.size() <<"\n debug: "<<debug;
+        std::cout<<"\n verbosity: "<<verbosity<<"\n convertToBnf: "<<convertToBnf;
+        std::cout<<"\n fixRecursion: "<<fixRecursion<<"\n\n";
     }
 
-    
     gbnf::CodeGenerator gen( output, outFileName );
     gen.outputStart();
 
     // Run through each input, and produce an output
     for( auto& a : inFiles ){
+        if(verbosity)
+            std::cout<<"Converting and generating code from file: "<< a.filename <<"\n";
+
         gbnf::GbnfData data;
-        gbnf::convertToGbnf( data, *(a.is), (megaVerbose ? 2 : (verbose ? 1 : 0)) );
+        gbnf::convertToGbnf( data, *(a.is), verbosity );
     
-		std::cout<<"\n"<< data <<"\n";
-        //gen.generateConstructionCode( data, a.filename ); 
+		//std::cout<<"\n"<< data <<"\n";
+        gen.generateConstructionCode( data, a.filename ); 
     }
 
     gen.outputEnd();
-
-    //std::cout<<"\nGBNF Result Data: \n";
-    //data.print(std::cout);
-
-    //std::cout<<"\n==============================\nGenerating C++ code...\n";
-    //gbnf::generateCode( data, output, "parsingData");
 
     return 0;
 }
