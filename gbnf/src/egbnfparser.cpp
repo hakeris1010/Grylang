@@ -22,7 +22,7 @@ namespace gbnf{
 struct ParseState{
     size_t line = 0;
     size_t pos = 0;
-    short lastTagID = 0;
+    //short lastTagID = 0;
 };
 
 class ParseInput{
@@ -42,7 +42,7 @@ private:
     inline void updateLineStats( const std::string& str );
     inline void updateLineStats( char c );
 
-    short getTagIDfromTable( const std::string& name, bool insertIfNotPresent );
+    //short getTagIDfromTable( const std::string& name, bool insertIfNotPresent );
     void getTagName( std::string& str, bool startsWithLetter = true );
     int  parseGrammarToken( GrammarToken& tok, int recLevel = 1, char endChar = '}' );
     bool parseGrammarOption( GrammarToken& tok );
@@ -77,17 +77,17 @@ inline void ParseInput::logf( bool dewit, int priority,
 /*! Can be used to find NonTerminal tag's ID from it's name, 
  *  or to insert into a table a new NonTerminal with name = name. ID ass'd automatically.
  */ 
-short ParseInput::getTagIDfromTable( const std::string& name, bool insertIfNotPresent ){
+short GbnfData::getTagIDfromTable( const std::string& name, bool insertIfNotPresent ){
     // Search by iteration, because we can't search for string sorted.
-    for(auto t : data.tagTable){
+    for(auto t : tagTable){
         if(t.data.compare( name ) == 0)
             return t.ID;
     }
     // If reached this point, element not found. Insert new NonTerminal Tag if flag specified.
     if(insertIfNotPresent){
-        data.tagTable.insert( NonTerminal( ps.lastTagID+1, name ) );
-        ps.lastTagID++;
-        return ps.lastTagID;
+        tagTable.insert( NonTerminal( lastTagID+1, name ) );
+        lastTagID++;
+        return lastTagID;
     }
     return -1;
 }
@@ -172,7 +172,7 @@ int ParseInput::parseGrammarToken( GrammarToken& tok, int recLevel, char endChar
         logf(dbg, 2, "%sGot Name:%s\n", recs.c_str(), buff.c_str());
 
         tok.type = GrammarToken::TAG_ID;
-        tok.id = getTagIDfromTable( buff, true );
+        tok.id = data.getTagIDfromTable( buff, true );
     }
     // Regex-String
     else if( c == '\"' ){
@@ -318,7 +318,7 @@ void ParseInput::parseGrammarRule( GrammarRule& rule ){
     
     // Get the first tag (the NonTerminal this rule defines), and it's ID.
     getTagName( tmp );
-    rule.ID = getTagIDfromTable( tmp, true ); // Add to table if not present.
+    rule.ID = data.getTagIDfromTable( tmp, true ); // Add to table if not present.
 
     logf(dbg, 1, " TagName: %s, ID: %d \n", tmp.c_str(), (int)rule.ID);
     logf(dbg, 2, "Getting assignment OP...\n");

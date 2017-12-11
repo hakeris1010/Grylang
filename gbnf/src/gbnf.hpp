@@ -155,6 +155,7 @@ inline std::ostream& operator<< (std::ostream& os, const GrammarRule& rule){
  */ 
 struct GbnfData{
     uint16_t flags = 0;
+    short lastTagID = 1;
     std::set<NonTerminal, std::function<bool (const NonTerminal&, const NonTerminal&)>> tagTable; 
     std::vector<GrammarRule> grammarTable;
 
@@ -165,6 +166,7 @@ struct GbnfData{
     {}
 
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const;
+    short getTagIDfromTable( const std::string& name, bool insertIfNotPresent );
 };
 
 inline std::ostream& operator<< (std::ostream& os, const GbnfData& rule){
