@@ -22,7 +22,6 @@ namespace gbnf{
 struct ParseState{
     size_t line = 0;
     size_t pos = 0;
-    //short lastTagID = 0;
 };
 
 class ParseInput{
@@ -76,6 +75,7 @@ inline void ParseInput::logf( bool dewit, int priority,
 
 /*! Can be used to find NonTerminal tag's ID from it's name, 
  *  or to insert into a table a new NonTerminal with name = name. ID ass'd automatically.
+ *  @return the ID of the tag got or inserted.
  */ 
 short GbnfData::getTagIDfromTable( const std::string& name, bool insertIfNotPresent ){
     // Search by iteration, because we can't search for string sorted.
@@ -85,9 +85,9 @@ short GbnfData::getTagIDfromTable( const std::string& name, bool insertIfNotPres
     }
     // If reached this point, element not found. Insert new NonTerminal Tag if flag specified.
     if(insertIfNotPresent){
-        tagTable.insert( NonTerminal( lastTagID+1, name ) );
-        lastTagID++;
-        return lastTagID;
+        ++(this->lastTagID);
+        tagTable.insert( NonTerminal( this->lastTagID, name ) );
+        return this->lastTagID;
     }
     return -1;
 }

@@ -2,10 +2,22 @@
 
 namespace gbnf::Converter{
 
+class ConverterToBNF{
+private:
+    GbnfData& data;
+
+public:
+    ConverterToBNF( GbnfData& _data ) : data( _data ) {}
+    void convert();
+
+    void getRuleFromToken( const GrammarToken& tok, std::vector<GrammarRule>& rules );
+    std::vector<GrammarRule> convertRuleToBnfRules( const GrammarRule& rule );
+}
+
 static void getRuleFromToken( const GrammarToken& tok, std::vector<GrammarRule>& rules ){
     GrammarRule* crule = nullptr;
     // Check current token's type. If not BNF, create a new rule to hold it!.
-    /*if( token.type != GrammarToken::TAG_ID && 
+    if( token.type != GrammarToken::TAG_ID && 
         token.type != GrammarToken::REGEX_STRING &&
         token.type != GrammarToken::ROOT_TOKEN )
     {
@@ -25,16 +37,16 @@ static void getRuleFromToken( const GrammarToken& tok, std::vector<GrammarRule>&
 
             fixNeeded = true;
         }
-    }*/
+    }
 }
 
 static std::vector<GrammarRule> convertRuleToBnfRules( const GrammarRule& rule ){
     // Loop through all the options of the rule, and check every token of every option, if it complies.
-    /*for( const auto& option : rule.options ){
+    for( const auto& option : rule.options ){
         
         if( needsFixing )
             break; 
-    }*/
+    }
 }
 
 void convertToSimpleBNF( GbnfData& data ){
