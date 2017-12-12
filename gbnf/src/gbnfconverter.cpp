@@ -15,7 +15,7 @@ public:
     void convert();
 
     short createNewRuleAndGetTag( GrammarToken&& rootToken, int recLevel = 0 );
-    void fixNonBNFTokensInRule( GrammarRule& rule, int recLevel );
+    void fixNonBNFTokensInRule( GrammarRule& rule, int recLevel = 0 );
 };
 
 
@@ -26,23 +26,17 @@ public:
  *  @return an ID of the NonTerminal which the newly created rule defines.
  */ 
 short ConverterToBNF::createNewRuleAndGetTag( GrammarToken&& token, int recLevel ){
-    data.insertNewTag( "__tmp_bnfmode_"+std::to_string( data.getlastTagID() + 1 ) );
-
     // Backup current token's type
-    auto tokType = token.type;
+    auto tokType = token.type; 
+
+    short nruleID = data.insertNewTag( "__tmp_bnfmode_"+
+                        std::to_string( data.getlastTagID() + 1 ) );
 
     // Create a new rule to be added to newRules.
     // Assign the token's children as new rule's Option no.1 .
-    /*GrammarRule nrule (
-        data.lastTagID, { 
-            GrammarToken( 
-                GrammarToken::ROOT_TOKEN, 0, std::string(),
-                std::move( token.children ) 
-            )
-        }
-    );*/
-
-    GrammarRule
+    GrammarRule nrule;
+    nrule.ID = nruleID;
+    nrule.options = std::move( token.children );
 
     // Binary Recursion !
     // Fix our new rule's options with "fixNonBNFTokensInRule".
@@ -55,16 +49,31 @@ short ConverterToBNF::createNewRuleAndGetTag( GrammarToken&& token, int recLevel
     {
         // Check if only one option is left in the rule. If not, make another rule.
         if( nrule.options.size() > 1 ){
-            data.insertNewTag( "__tmp_bnfmode_"+std::to_string( data.getlastTagID() + 1 ) );
+            short newTagID = data.insertNewTag( "__tmp_bnfmode_"+
+                    std::to_string( data.getlastTagID() + 1 ) );
 
+            // Make a new rule containing all option of the current rule.
+            // The new rule defines a tag with ID of "newTagID".
+            this->newRules.push_back( GrammarRule(
+                newTagID,
+                std::move( nrule.options );    
+            ) );
             
+            // Now clear current rule's options, and add a single option - reference to
+            // a new rule.
+            nrule.options.clear();
+            nrule.options.push_back( GrammarToken( GrammarToken::ROOT_TOKEN, 0, "",
+                { GrammarToken( GrammarToken::TAG_ID, newTagID, std::string(), {} ) }
+            ) );
         }
 
+        // Insert a nonTerminal option with Current Rule's ID at end or beginning,
+        // depending on parser type, to initiate recursive repetition. 
         nrule.options.insert(
             ( preferRightRecursion ? options.end() : options.begin() ),
-            std::move( 
-                GrammarToken( GrammarToken::TAG_ID, nrule.ID, std::string(), {} )
-            )
+            GrammarToken( GrammarToken::ROOT_TOKEN, 0, std::string(),
+                { GrammarToken( GrammarToken::TAG_ID, nrule.ID, std::string(), {} ) }
+            ) 
         );
     }
 
@@ -75,6 +84,21 @@ short ConverterToBNF::createNewRuleAndGetTag( GrammarToken&& token, int recLevel
     return nrule.ID;
 }
 
+/*! Converts all Non-BNF tokens in a Rule to BNF tokens, creating new Rules if needed.
+ *  - Uses Binary Recursion with createNewRuleAndGetTag to complete the feat.
+ *  - Non-BNF tokens are Groups, which are of 4 types.
+ *
+ *    - GROUP_OPTIONAL and GROUP_REPEAT_NONE, which indicate optional tokens, are 
+ *      getting a separate rule, and after that, are also being handled on this function, 
+ *      where additional option is added to the Rule.
+ *
+ *    - GROUP_ONE and GROUP_REPEAT_ONE, which are non-optional, are just getting a
+ *      separate rule, and the token in current Rule is being replaced by a tag of
+ *      a new rule.
+ *
+ *  @param rule - a reference to a GrammarRule being fixed.
+ *  @param recLevel - recursion level.
+ */ 
 void ConverterToBNF::fixNonBNFTokensInRule( GrammarRule& rule, int recLevel ){
     // Loop through all the options of the rule, and 
     // check every token of every option, if it hasn't got more layers.
@@ -103,7 +127,7 @@ void ConverterToBNF::fixNonBNFTokensInRule( GrammarRule& rule, int recLevel ){
                     // If many childs, and/or it/they have group types:
                     GrammarToken( 
                         GrammarToken::TAG_ID, 
-                        createNewRuleAndGetTag( std::move( token ) ),
+                        createNewRuleAndGetTag( std::move( token ), recLevel ),
                         "", {} 
                     )   
                 );
@@ -132,7 +156,9 @@ void ConverterToBNF::fixNonBNFTokensInRule( GrammarRule& rule, int recLevel ){
 void ConverterToBNF::convert(){
     // Search for rules which contain eBNF tokens.
     for( auto& rule : data.grammarTable ){
-        
+        // For each rule, pass it to this function, which modifies the rule, 
+        // fixing Non-BNF tokens.
+        fixNonBNFTokensInRule( rule );
     }
 
     // At the end, append newly constructed rules to grammar table.
