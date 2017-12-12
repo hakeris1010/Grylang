@@ -30,13 +30,17 @@ short ConverterToBNF::createNewRuleAndGetTag( GrammarToken&& token, int recLevel
     auto tokType = token.type; 
 
     short nruleID = data.insertNewTag( "__tmp_bnfmode_"+
-                        std::to_string( data.getlastTagID() + 1 ) );
+                        std::to_string( data.getLastTagID() + 1 ) );
 
     // Create a new rule to be added to newRules.
-    // Assign the token's children as new rule's Option no.1 .
+    // Assign the being-fixed token's children as new rule's Option no.1 .
     GrammarRule nrule;
     nrule.ID = nruleID;
-    nrule.options = std::move( token.children );
+    nrule.options.push_back( 
+        GrammarToken( GrammarToken::ROOT_TOKEN, 0, "", 
+            std::move( token.children ) 
+        )
+    );
 
     // Binary Recursion !
     // Fix our new rule's options with "fixNonBNFTokensInRule".
@@ -50,13 +54,13 @@ short ConverterToBNF::createNewRuleAndGetTag( GrammarToken&& token, int recLevel
         // Check if only one option is left in the rule. If not, make another rule.
         if( nrule.options.size() > 1 ){
             short newTagID = data.insertNewTag( "__tmp_bnfmode_"+
-                    std::to_string( data.getlastTagID() + 1 ) );
+                    std::to_string( data.getLastTagID() + 1 ) );
 
             // Make a new rule containing all option of the current rule.
             // The new rule defines a tag with ID of "newTagID".
             this->newRules.push_back( GrammarRule(
                 newTagID,
-                std::move( nrule.options );    
+                std::move( nrule.options )
             ) );
             
             // Now clear current rule's options, and add a single option - reference to
@@ -70,7 +74,7 @@ short ConverterToBNF::createNewRuleAndGetTag( GrammarToken&& token, int recLevel
         // Insert a nonTerminal option with Current Rule's ID at end or beginning,
         // depending on parser type, to initiate recursive repetition. 
         nrule.options.insert(
-            ( preferRightRecursion ? options.end() : options.begin() ),
+            ( preferRightRecursion ? nrule.options.end() : nrule.options.begin() ),
             GrammarToken( GrammarToken::ROOT_TOKEN, 0, std::string(),
                 { GrammarToken( GrammarToken::TAG_ID, nrule.ID, std::string(), {} ) }
             ) 

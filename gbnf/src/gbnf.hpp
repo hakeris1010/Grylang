@@ -118,6 +118,10 @@ struct GrammarToken{
                   const std::initializer_list< GrammarToken >& _children = {} )
         : type( _type ), id( _id ), data( _data ), children( _children )
     {}
+    GrammarToken( char _type, short _id, const std::string& _data, 
+                  std::vector< GrammarToken >&& _children )
+        : type( _type ), id( _id ), data( _data ), children( std::move(_children) )
+    {}
 
     static std::string getTypeString( char typ, bool codeMode = false );
      

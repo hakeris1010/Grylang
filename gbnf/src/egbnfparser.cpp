@@ -96,7 +96,7 @@ short GbnfData::getTagIDfromTable( const std::string& name, bool insertIfNotPres
  * @param name - name of new tag.
  * @return ID of the newly inserted tag.
  */ 
-short insertNewTag( const std::string& name ){
+short GbnfData::insertNewTag( const std::string& name ){
     ++(this->lastTagID);
     tagTable.insert( NonTerminal( this->lastTagID, name ) );
     return this->lastTagID;
