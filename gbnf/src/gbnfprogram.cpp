@@ -97,7 +97,7 @@ int main(int argc, char** argv){
 
     int verbosity = 0;
     bool convertToBnf = false;
-    bool fixRecursion = true;
+    int recursionFixMode = 0;
 
     // Parse arguments.
     if(argc > 1){
@@ -120,11 +120,10 @@ int main(int argc, char** argv){
             else if(!strcmp(argv[i], "--convert-to-bnf=false"))
                 convertToBnf = false; 
 
-            else if(!strcmp(argv[i], "--fix-recursion=true") ||
-                    !strcmp(argv[i], "--fix-recursion"))
-                fixRecursion = true;
-            else if(!strcmp(argv[i], "--fix-recursion=false"))
-                fixRecursion = false;
+            else if(!strcmp(argv[i], "--fix-recursion=left"))
+                recursionFixMode = gbnf::FIX_LEFT_RECURSION;
+            else if(!strcmp(argv[i], "--fix-recursion=right"))
+                recursionFixMode = gbnf::FIX_RIGHT_RECURSION;
 
             // Output file is indicated by "-o"
             else if((!strcmp(argv[i], "-o") || !strcmp(argv[i], "--outfile")) && i < argc-1){
@@ -179,7 +178,7 @@ int main(int argc, char** argv){
     if( verbosity > 0 ){
         std::cout<<"Final setup:\n inFiles: "<< inFiles.size() <<"\n debug: "<<debug;
         std::cout<<"\n verbosity: "<<verbosity<<"\n convertToBnf: "<<convertToBnf;
-        std::cout<<"\n fixRecursion: "<<fixRecursion<<"\n\n";
+        std::cout<<"\n recursionFixMode: "<< recursionFixMode <<"\n\n";
     }
 
     gbnf::CodeGenerator gen( output, outFileName );
@@ -191,7 +190,17 @@ int main(int argc, char** argv){
             std::cout<<"Converting and generating code from file: "<< a.filename <<"\n";
 
         gbnf::GbnfData data;
+
+        // Convert
         gbnf::convertToGbnf( data, *(a.is), verbosity );
+
+        // Convert to BNF
+        if( convertToBnf )
+            gbnf::convertToBNF( data, ( recursionFixMode == gbnf::FIX_LEFT_RECURSION ? true : false ) );
+
+        // Fix recursion
+        if( recursionFixMode )
+            gbnf::fixRecursion( data, recursionFixMode );
     
 		//std::cout<<"\n"<< data <<"\n";
         gen.generateConstructionCode( data, a.filename ); 

@@ -188,7 +188,8 @@ void CodeGenerator::generateConstructionCode( const GbnfData& gbData,
 /*! GBNF TOOLS.
  *  Generates a C++ header file from GBNF data passed, and outputs to a stream.
  */ 
-void generateCode(const GbnfData& data, std::ostream& output, const char* variableName){
+void generateCode( const GbnfData& data, std::ostream& output, 
+                   const char* variableName, int verbosity ){
     GbnfCodeGenerator gen( output, std::string( variableName ) );
     gen.outputStart();
     gen.generate( data, std::string( variableName ) );

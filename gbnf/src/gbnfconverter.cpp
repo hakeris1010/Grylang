@@ -1,16 +1,18 @@
 #include "gbnfconverter.hpp"
 
-namespace gbnf::Converter{
+namespace gbnf{
 
 class ConverterToBNF{
 private:
     GbnfData& data;
     std::vector< GrammarRule > newRules;
     const bool preferRightRecursion = true; // For LR Pars0rz
+    int verbosity = 0;
 
 public:
-    ConverterToBNF( GbnfData& _data, bool _preferRightRec = true ) 
-        : data( _data ), preferRightRecursion( _preferRightRec ) {}
+    ConverterToBNF( GbnfData& _data, bool _preferRightRec = true, int _verbosity = 0 ) 
+        : data( _data ), preferRightRecursion( _preferRightRec ), verbosity( _verbosity ) 
+    {}
 
     void convert();
 
@@ -170,6 +172,17 @@ void ConverterToBNF::convert(){
           data.grammarTable.end(),
           newRules.begin(), newRules.end() 
     );
+}
+
+//============= PUBLIC SECTION =============//
+
+void convertToBNF( GbnfData& data, bool preferRightRecursion, int verbosity ){
+    ConverterToBNF cbnf( data, preferRightRecursion, verbosity );
+    cbnf.convert();
+}
+
+void fixRecursion( GbnfData& data, int recursionFixMode, int verbosity ){
+
 }
 
 

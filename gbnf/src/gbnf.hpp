@@ -165,14 +165,19 @@ private:
     short lastTagID = 0;
 
 public:
-    uint16_t flags = 0;
+    const static int FORMAT_EBNF     = 1;
+    const static int FORMAT_BNF      = 2;
+    const static int LEFT_RECURSIVE  = 4;
+    const static int RIGHT_RECURSIVE = 8;
+
+    int flags = 0;
     std::set<NonTerminal, std::function<bool (const NonTerminal&, const NonTerminal&)>> tagTable; 
     std::vector<GrammarRule> grammarTable;
 
     GbnfData() : tagTable ( NonTerminal::compare ) {}
-    GbnfData( uint16_t flg, const std::initializer_list< NonTerminal >& tagTbl, 
-                            const std::initializer_list< GrammarRule >& grammarTbl )
-        : flags( flg ), tagTable( tagTbl, NonTerminal::compare ), grammarTable( grammarTbl )
+    GbnfData( int flag, const std::initializer_list< NonTerminal >& tagTbl, 
+                        const std::initializer_list< GrammarRule >& grammarTbl )
+        : flags( flag ), tagTable( tagTbl, NonTerminal::compare ), grammarTable( grammarTbl )
     {}
 
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const;
@@ -225,7 +230,7 @@ public:
  * @param input - the input stream to read from.
  * @throws runtime_error if fatal error occured.
  */ 
-void convertToGbnf(GbnfData& data, std::istream& input, int debugMode = 0);
+void convertToGbnf(GbnfData& data, std::istream& input, int verbosity = 0);
 
 /*! Function makes a C/C++ header file containing a const GbnfData structure which contains
  *  the gBNF data from the 'data' structure.
@@ -234,14 +239,24 @@ void convertToGbnf(GbnfData& data, std::istream& input, int debugMode = 0);
  *  @param output - the output stream to write to. Most likely a file stream.
  *  @throws runtime_error if fatal error occured.
  */ 
-void generateCode( const GbnfData& data, std::ostream& output, const char* variableName ); 
- 
-/*namespace GbnfConstructionCode{
-    void printNonTerminal( std::ostream& os, const NonTerminal& a, const auto& param );
-    void printGrammarToken( std::ostream& os, const GrammarToken& a, const auto& param );
-    void printGrammarRule( std::ostream& os, const GrammarRule& a, const auto& param );
-    void printGbnfData( std::ostream& os, const GbnfData& a, const auto& param );
-}*/
+void generateCode( const GbnfData& data, std::ostream& output, 
+                   const char* variableName, int verbosity = 0 ); 
+
+/*! GBNF Converters. Converts GBNF data to various formats.
+ *  - Converts EBNF grammar to BNF, for easier parsing.
+ *  - Fixes the left/right recursion (Must be converted to BNF).
+ *  @param data - GBNF data structure.
+ *  @param preferRightRecursion - if set, conversion to BNF prefers right recursion over left.
+ *  @param recursionFixMode - can be set to fix right, left recursion, or nothing (0).
+ */ 
+
+const int NO_RECURSION_FIX = 0;
+const int FIX_LEFT_RECURSION = 1;
+const int FIX_RIGHT_RECURSION = 2;
+
+void convertToBNF( GbnfData& data, bool preferRightRecursion = false, int verbosity = 0 );
+
+void fixRecursion( GbnfData& data, int recursionFixMode = FIX_LEFT_RECURSION, int verbosity = 0 );
 
 }
 
