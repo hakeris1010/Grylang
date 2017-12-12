@@ -92,6 +92,16 @@ short GbnfData::getTagIDfromTable( const std::string& name, bool insertIfNotPres
     return -1;
 }
 
+/*! Actually inserts a NonTerminal tag into da taybol, and returns it's ID.
+ * @param name - name of new tag.
+ * @return ID of the newly inserted tag.
+ */ 
+short insertNewTag( const std::string& name ){
+    ++(this->lastTagID);
+    tagTable.insert( NonTerminal( this->lastTagID, name ) );
+    return this->lastTagID;
+}
+
 inline void ParseInput::updateLineStats( const std::string& str ) {
     size_t pos = 0, lastPos = 0;
     while( (pos = str.find('\n', lastPos)) != std::string::npos ){

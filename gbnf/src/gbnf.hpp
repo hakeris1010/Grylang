@@ -141,6 +141,9 @@ struct GrammarRule{
     GrammarRule(short _ID, const std::initializer_list< GrammarToken >& _options)
         : ID( _ID ), options( _options )
     {}
+    GrammarRule(short _ID, std::vector< GrammarToken >&& _options)
+        : ID( _ID ), options( std::move( _options ) )
+    {} 
 
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const ;
 };
@@ -154,8 +157,11 @@ inline std::ostream& operator<< (std::ostream& os, const GrammarRule& rule){
  *  This is the structure which holds the whole grammar which is being worked with.
  */ 
 struct GbnfData{
-    uint16_t flags = 0;
+private:
     short lastTagID = 0;
+
+public:
+    uint16_t flags = 0;
     std::set<NonTerminal, std::function<bool (const NonTerminal&, const NonTerminal&)>> tagTable; 
     std::vector<GrammarRule> grammarTable;
 
@@ -166,7 +172,10 @@ struct GbnfData{
     {}
 
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const;
+    short getLastTagID() const { return lastTagID; }
+
     short getTagIDfromTable( const std::string& name, bool insertIfNotPresent );
+    short insertNewTag( const std::string& name );
 };
 
 inline std::ostream& operator<< (std::ostream& os, const GbnfData& rule){
