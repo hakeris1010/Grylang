@@ -7,20 +7,30 @@ AR = ar
 CXXFLAGS= -std=c++14
 LDFLAGS= 
 
-DEBUG_CXXFLAGS= -g -Wall
+DEBUG_CXXFLAGS= -g -Wall -O0
 RELEASE_CXXFLAGS= -O2
+DEBUG_LDFLAGS=
+RELEASE_LDFLAGS=
 
-TESTDIR= ./bin/test
-LIBDIR= ./lib
-INCLUDEDIR= ./include
-BINDIR= ./bin
+TEST_CXXFLAGS= -std=c++14 
+TEST_LDFLAGS=
+TEST_EXEC_ARGS=
+
+#----- Directories -----#
+
+TESTDIR= bin/test
+LIBDIR= lib
+INCLUDEDIR= include
+BINDIR= bin
+
+STATICLIBDIR= $(LIBDIR)/static
 
 BINDIR_RELEASE= $(BINDIR)/release
 BINDIR_DEBUG= $(BINDIR)/debug
 
 #====================================#
 #set directories
-ZSH_RESULT:=$(shell mkdir -p $(TESTDIR) $(LIBDIR) $(BINDIR_RELEASE) $(BINDIR_DEBUG) $(INCLUDEDIR))
+ZSH_RESULT:=$(shell mkdir -p $(TESTDIR) $(LIBDIR) $(BINDIR_RELEASE) $(BINDIR_DEBUG) $(INCLUDEDIR) $(STATICLIBDIR))
 
 #====================================#
 
@@ -31,44 +41,44 @@ GRYLTOOLS_LIBCLUDE= -L../gryltools/libGrylTools/lib/static
 
 #----- GBNF Sources/Libs ----#
 
-GBNF= gbnf
+GBNF_LIB= $(STATICLIBDIR)/libgbnf
+GBNF_ADDLIB= -lgbnf
+GBNF_LIBCLUDE= -L$(STATICLIBDIR)
+
 SOURCES_GBNF= src/egbnfparser.cpp \
 			  src/gbnfcodegen.cpp \
 			  src/gbnfconverter.cpp \
-			  src/gbnfprogram.cpp 
-
+			  
 HEADERS_GBNF= src/gbnf.hpp
 
 LIBS_GBNF= -lgryltools
 
+GBNF_INCLDIR= $(INCLUDEDIR)/gbnf
+
+GBNFPROGRAM = gbnf
+SOURCES_GBNFPROGRAM= src/gbnfprogram.cpp 
+
 #--------- Test sources ---------#
 
-SOURCES_TEST1= src/test/test1.cpp 
-LIBS_TEST1= -lgryltools
-TEST1= $(TESTDIR)/test1
-
-#---------  Test  list  ---------# 
-
-TESTNAME= $(TEST1) 
+SOURCES_TEST= src/test/test1.cpp 
+LIBS_TEST= -lgryltools
 
 #====================================#
 
-DEBUG_INCLUDES= 
-RELEASE_INCLUDES= 
+DEBUG_INCLUDES= -Isrc/
+RELEASE_INCLUDES= -Iinclude/
+TEST_INCLUDES= -Iinclude/
 
 BINPREFIX= 
 
-# Set the libraries
+# Set the search directories
 
-LDFLAGS += $(GRYLTOOLS_LIBCLUDE)
-CXXFLAGS += $(GRYLTOOLS_INCLUDE)
+LDFLAGS += $(GRYLTOOLS_LIBCLUDE) $(GBNF_LIBCLUDE)
+CXXFLAGS += $(GRYLTOOLS_INCLUDE) 
 
 #===================================#
 
 all: debug
-
-debug: debops $(GBNF) $(TESTNAME)
-release: relops $(GBNF) $(TESTNAME)
 
 debops: 
 	$(eval CXXFLAGS += $(DEBUG_CXXFLAGS) $(DEBUG_INCLUDES))
@@ -78,20 +88,53 @@ relops:
 	$(eval CXXFLAGS += $(RELEASE_CXXFLAGS) $(RELEASE_INCLUDES)) 
 	$(eval BINPREFIX = $(BINDIR_RELEASE)) 
 
+debug: debops $(GBNF) $(GBNFPROGRAM) test_main
+release: relops $(GBNF) $(GBNFPROGRAM) test_main
+
 .cpp.o:
 	$(CXX) $(CXXFLAGS) -c $*.cpp -o $*.o
 
-$(GBNF): $(SOURCES_GBNF:.cpp=.o) 
-	$(CXX) $(LDFLAGS) -o $(BINPREFIX)/$@ $^ $(LIBS_GBNF) 
-$(GBNF)_debug: debops $(GBNF)    
+gbnf_incl: $(HEADERS_GBNF) 
+	mkdir -p $(GBNF_INCLDIR) 
+	for file in $^ ; do \
+		cp -u $$file $(GBNF_INCLDIR) ; \
+	done
+	
+$(GBNF_LIB): $(SOURCES_GBNF:.cpp=.o) 
+	$(AR) $(LDFLAGS) -rvsc $@ $^ $(LIBS_GBNF) 
+
+#$(GBNF_SHARED): $(SOURCES_GBNF:.cpp=.o) 
+#	$(CXX) $(LDFLAGS) -shared -o $(GBNF_SHARED) $^ \
+#		-Wl,--whole-archive $(LIBS_GBNF) -Wl,--no-whole-archive  
+
+$(GBNFPROGRAM): $(SOURCES_GBNFPROGRAM:.cpp=.o) 
+	$(CXX) $(LDFLAGS) -o $@ $^ $(GBNFPROGRAM_LIBS)  
+
+gbnf: gbnf_incl $(GBNF_LIB) $(GBNFPROGRAM)   
 
 #===================================#
 # Tests
 
-test_debug: debops $(TESTNAME)
+test_main: test_debops tests
+	for file in $(TESTDIR)/* ; do \
+		./$$file $(TEST_EXEC_ARGS) ; \
+	done
 
-$(TEST1): $(SOURCES_TEST1:.cpp=.o) 
-	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS_TEST1)
+test_debops: 
+	$(eval CFLAGS   += $(TEST_CFLAGS)   $(TEST_INCLUDES) )
+	$(eval CXXFLAGS += $(TEST_CXXFLAGS) $(TEST_INCLUDES) )
+	$(eval LDFLAGS  += $(TEST_LDFLAGS)  $(TEST_LIBCLUDES))
+
+tests: $(TEST_CPP_SOURCES:.cpp=.o) 
+	for file in $^ ; do \
+		y=$${file%.o} ; \
+		exe=$(TESTDIR)/$${y##*/} ; \
+		if [ ! -f $$exe ] || [ $$file -nt $$exe ] ; then \
+			echo "Recompiling test $$exe ..." ; \
+			$(CXX) -o $(LDFLAGS) $$exe $$file $(TEST_LIBS); \
+		fi ; \
+	done
+
 
 #===================================#
 
