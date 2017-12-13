@@ -73,14 +73,29 @@ short ConverterToBNF::createNewRuleAndGetTag( GrammarToken&& token, int recLevel
             ) );
         }
 
+        // Create a repetition option (copy tokens in first option)
+        GrammarToken reptok ( GrammarToken::ROOT_TOKEN, 0, std::string(), {} );
+        reptok.children = nrule.options[ 0 ].children;
+
         // Insert a nonTerminal option with Current Rule's ID at end or beginning,
         // depending on parser type, to initiate recursive repetition. 
-        nrule.options.insert(
-            ( preferRightRecursion ? nrule.options.end() : nrule.options.begin() ),
-            GrammarToken( GrammarToken::ROOT_TOKEN, 0, std::string(),
-                { GrammarToken( GrammarToken::TAG_ID, nrule.ID, std::string(), {} ) }
-            ) 
-        );
+        if( preferRightRecursion ){ // If right recursion, add in the end.
+            reptok.children.insert( reptok.children.end(), 
+                GrammarToken( GrammarToken::TAG_ID, nrule.ID, std::string(), {} )
+            );
+
+            //nrule.options.insert( nrule.options.end(), std::move( reptok ) );
+        }
+        else{ // If left recursion, add in the beginning.
+            reptok.children.insert( reptok.children.begin(),
+                GrammarToken( GrammarToken::TAG_ID, nrule.ID, std::string(), {} )
+            );
+
+            //nrule.options.insert( nrule.options.begin(), std::move( reptok ) );
+        }
+
+        // Add repetition option to the rule.
+        nrule.options.insert( nrule.options.end(), std::move( reptok ) );
     }
 
     // Push (move) this rule to newRules vector.
@@ -125,9 +140,14 @@ void ConverterToBNF::fixNonBNFTokensInRule( GrammarRule& rule, int recLevel ){
             {
                 // If only one child, and it's a leaf, just use it as repl. However, if
                 // there are more than one, or if it's a tree, create a separate rule. 
+                // TODO: Maybe dont't check anything.
                 auto&& replacement = ( 
                     ( token.children.size() == 1 && 
-                      token.children[ 0 ].children.empty() ) ?
+                      token.children[ 0 ].children.empty() && (
+                        type == GrammarToken::GROUP_ONE ||
+                        type == GrammarToken::GROUP_OPTIONAL
+                      )    
+                    ) ?
                     // If only one child and it's a non-group type:
                     token.children[0] :
                     // If many childs, and/or it/they have group types:

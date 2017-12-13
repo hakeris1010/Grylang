@@ -39,28 +39,9 @@ const char* testData =
 */
 
 const char* testData2 = 
-"<character_constant> ::== \"\\'\" {<p>}* \"\\'\" ;\n" ;
-
-/*"\n"
-"<floating_constant> ::== {<d>}+ \".\" {<d>}+ ;\n"
-"\n"
-"<string> ::== \"\\\"\" {<any>}* \"\\\"\" ;\n"
-"\n"
-"<comment> ::== \"//\" {<any>}*\n";
-*/
-//"             | \"/*\" {<any>}* \"*/\" ;\n"
-/*"\n"
-"<d> ::== \"[0-9]\" ;\n"
-"<w> ::== \"[a-zA-Z0-9_]\" ;\n"
-"<p> ::== \"[\\x20-\\x7e]\" ;\n"
-"<any> ::== \"[\\x00-\\xFF]\" ;\n"
-"\n"
-"<operator> ::== \"{\" | \"}\" | \"[\" | \"]\" | \"(\" | \")\" | \".\" | \",\" | \":\" | \";\" \n"
-"              | \"~\" | \"^\" | \"&\" | \"|\" | \"!\" | \"+\" | \"-\" | \"*\" | \"/\" | \"%\" \n"
-"              | \"=\" | \"<\" | \">\" | \"||\" | \"&&\" | \"++\" | \"--\"\n"
-"              | \"*=\" | \"+=\" | \"-=\" | \"/=\" | \"&=\" | \"|=\" | \"^=\" | \"%=\"\n"
-"              | \"!=\" | \"==\" | \"<=\" | \">=\" | \"->\" | \">>\" | \"<<\" ;";
-*/
+//"<character_constant> ::== \"\\'\" {<p>}* \"\\'\" ;\n" 
+"<noot> ::= \"woop[]\" {<baka> <desu> \"abcd\" { \"regex\" \"+\" }* }+ <noot> ;\n"
+;
 
 const char* finalData = testData2;
 
@@ -186,23 +167,34 @@ int main(int argc, char** argv){
 
     // Run through each input, and produce an output
     for( auto& a : inFiles ){
-        if(verbosity)
-            std::cout<<"Converting and generating code from file: "<< a.filename <<"\n";
+        std::cout<<"\nParsing file: "<< a.filename <<"\n";
 
+        // Allocate data.
         gbnf::GbnfData data;
 
-        // Convert
+        // Parse file to GBNF
+        std::cout<<" Parsing to GBNF...\n";
         gbnf::convertToGbnf( data, *(a.is), verbosity );
 
         // Convert to BNF
-        if( convertToBnf )
-            gbnf::convertToBNF( data, ( recursionFixMode == gbnf::FIX_LEFT_RECURSION ? true : false ) );
+        if( convertToBnf ){
+            std::cout<<" Converting to BNF...\n";
 
-        // Fix recursion
-        if( recursionFixMode )
+            gbnf::convertToBNF( data, ( recursionFixMode == 
+                    gbnf::FIX_LEFT_RECURSION ? true : false ) );
+        }
+
+        // Fixing recursion
+        if( recursionFixMode ){    
+            std::cout<<" Fixing recursion: ";
+            std::cout<< (recursionFixMode==gbnf::FIX_LEFT_RECURSION ? "left" : "right") <<"\n";
+        
             gbnf::fixRecursion( data, recursionFixMode );
+        }
     
-		//std::cout<<"\n"<< data <<"\n";
+        // Generating
+        std::cout<<" Generating Code ... \n";
+
         gen.generateConstructionCode( data, a.filename ); 
     }
 
