@@ -1,0 +1,150 @@
+#mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+#current_dir := $(notdir $(patsubst %/,%,$(dir $(mkfile_path))))
+
+CXX = g++
+AR = ar
+
+CXXFLAGS= -std=c++14
+LDFLAGS= 
+
+DEBUG_CXXFLAGS= -g -Wall -O0
+RELEASE_CXXFLAGS= -O2
+DEBUG_LDFLAGS=
+RELEASE_LDFLAGS=
+
+TEST_CXXFLAGS= -std=c++14 
+TEST_LDFLAGS=
+TEST_EXEC_ARGS=
+
+#----- Directories -----#
+
+TESTDIR= bin/test
+LIBDIR= lib
+INCLUDEDIR= include
+BINDIR= bin
+
+STATICLIBDIR= $(LIBDIR)/static
+
+BINDIR_RELEASE= $(BINDIR)/release
+BINDIR_DEBUG= $(BINDIR)/debug
+
+#====================================#
+#set directories
+ZSH_RESULT:=$(shell mkdir -p $(TESTDIR) $(LIBDIR) $(BINDIR_RELEASE) $(BINDIR_DEBUG) $(INCLUDEDIR) $(STATICLIBDIR))
+
+#====================================#
+
+#- GrylTools Libs/Includes --#
+
+GRYLTOOLS_INCLUDE= -I../gryltools/libGrylTools/include
+GRYLTOOLS_LIBCLUDE= -L../gryltools/libGrylTools/lib/static
+
+#----- GBNF Sources/Libs ----#
+
+GBNF_LIB= $(STATICLIBDIR)/libgbnf
+GBNF_ADDLIB := -lgbnf
+GBNF_LIBCLUDE= -L$(STATICLIBDIR)
+
+SOURCES_GBNF= src/egbnfparser.cpp \
+			  src/gbnfcodegen.cpp \
+			  src/gbnfconverter.cpp \
+			  
+HEADERS_GBNF= src/gbnf.hpp
+
+LIBS_GBNF := -lgryltools
+
+GBNF_INCLDIR:= $(INCLUDEDIR)/gbnf
+
+#------- GBNF Tool Program ------#
+
+GBNFPROGRAM = gbnf
+SOURCES_GBNFPROGRAM= src/gbnfprogram.cpp 
+
+GBNFPROGRAM_LIBS := $(GBNF_ADDLIB) $(LIBS_GBNF)
+
+#--------- Test sources ---------#
+
+SOURCES_TEST= src/test/test1.cpp 
+LIBS_TEST= -lgryltools
+
+#====================================#
+
+DEBUG_INCLUDES= -Isrc/
+RELEASE_INCLUDES= -Iinclude/
+TEST_INCLUDES= -Iinclude/
+
+BINPREFIX= 
+
+# Set the search directories
+
+LDFLAGS += $(GRYLTOOLS_LIBCLUDE) $(GBNF_LIBCLUDE)
+CXXFLAGS += $(GRYLTOOLS_INCLUDE) 
+
+#===================================#
+
+all: debug
+
+debops: 
+	$(eval CXXFLAGS += $(DEBUG_CXXFLAGS) $(DEBUG_INCLUDES))
+	$(eval BINPREFIX = $(BINDIR_DEBUG)) 
+
+relops: 
+	$(eval CXXFLAGS += $(RELEASE_CXXFLAGS) $(RELEASE_INCLUDES)) 
+	$(eval BINPREFIX = $(BINDIR_RELEASE)) 
+
+debug: debops gbnf $(GBNFPROGRAM) test_main
+release: relops gbnf $(GBNFPROGRAM) test_main
+
+gbnf: gbnf_incl $(GBNF_LIB) $(GBNFPROGRAM)   
+
+.cpp.o:
+	$(CXX) $(CXXFLAGS) -c $*.cpp -o $*.o
+
+gbnf_incl: $(HEADERS_GBNF) 
+	mkdir -p $(GBNF_INCLDIR) 
+	for file in $^ ; do \
+		cp -u $$file $(GBNF_INCLDIR) ; \
+	done
+	
+$(GBNF_LIB): $(SOURCES_GBNF:.cpp=.o) 
+	$(AR) -rvsc $@ $^  
+
+#$(GBNF_SHARED): $(SOURCES_GBNF:.cpp=.o) 
+#	$(CXX) $(LDFLAGS) -shared -o $(GBNF_SHARED) $^ \
+#		-Wl,--whole-archive $(LIBS_GBNF) -Wl,--no-whole-archive  
+
+$(GBNFPROGRAM): $(SOURCES_GBNFPROGRAM:.cpp=.o) 
+	$(CXX) $(LDFLAGS) -o $(BINPREFIX)/$@ $^ $(GBNFPROGRAM_LIBS)  
+
+
+#===================================#
+# Tests
+
+test_main: test_debops tests
+	for file in $(TESTDIR)/* ; do \
+		./$$file $(TEST_EXEC_ARGS) ; \
+	done
+
+test_debops: 
+	$(eval CFLAGS   += $(TEST_CFLAGS)   $(TEST_INCLUDES) )
+	$(eval CXXFLAGS += $(TEST_CXXFLAGS) $(TEST_INCLUDES) )
+	$(eval LDFLAGS  += $(TEST_LDFLAGS)  $(TEST_LIBCLUDES))
+
+tests: $(TEST_CPP_SOURCES:.cpp=.o) 
+	for file in $^ ; do \
+		y=$${file%.o} ; \
+		exe=$(TESTDIR)/$${y##*/} ; \
+		if [ ! -f $$exe ] || [ $$file -nt $$exe ] ; then \
+			echo "Recompiling test $$exe ..." ; \
+			$(CXX) -o $(LDFLAGS) $$exe $$file $(TEST_LIBS); \
+		fi ; \
+	done
+
+
+#===================================#
+
+clean:
+	$(RM) *.o */*.o */*/*.o */*/*/*.o
+
+clean_all: clean
+	$(RM) $(BINDIR)/*.* $(BINDIR)/*/*.* $(TESTNAME)
