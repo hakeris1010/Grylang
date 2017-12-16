@@ -5,18 +5,17 @@
 #include <memory>
 
 namespace yparse{
-class ParserGeneratorImpl;
 
 class ParserGenerator{
     private:
-        std::unique_ptr< ParserGeneratorImpl > impl;
+        std::unique_ptr< ParserGenerator > impl;
 
     public:
-        ParserGenerator(const GbnfData& data, int flags);
-        ParserGenerator(GbnfData&& data, int flags);
+        ParserGenerator( const gbnf::GbnfData& data, int flags );
+        ParserGenerator( gbnf::GbnfData&& data, int flags );
+        virtual ~ParserGenerator();
 
-
-}
+};
 
 }
 

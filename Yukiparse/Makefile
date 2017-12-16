@@ -44,7 +44,8 @@ YUKIPARSE:=yukiparse
 	   
 SOURCES_YUKIPARSE= 
 
-HEADERS_YUKIPARSE= src/yukiparse.hpp
+HEADERS_YUKIPARSE= src/yukiparse.hpp \
+				   src/lexer.hpp
 
 LIBS_YUKIPARSE:= -lgbnf -lgryltools
 
@@ -67,8 +68,6 @@ TEST_LIBS= -l$(YUKIPARSE)
 YUKIPARSE_INCL= $(INCLUDEDIR)/$(YUKIPARSE)
 YUKIPARSE_LIB= $(LIBDIR)/static/lib$(YUKIPARSE)
 YUKIPARSE_SHARED= $(LIBDIR)/shared/lib$(YUKIPARSE)
-
-YUKIPARSE= gbnf_whole_franchise
 
 #====================================#
 # Includes/Libcludes.
@@ -177,7 +176,7 @@ clean:
 	$(RM) *.o */*.o */*/*.o */*/*/*.o
 
 clean_all: clean
-	
+	$(RM) -rf bin lib
 
 #nyaaaaa "$(RM) -rf $(BINDIR) $(LIBDIR)"
 
