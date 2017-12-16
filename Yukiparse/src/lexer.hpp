@@ -18,7 +18,7 @@ struct LexicToken{
 
     LexicToken( int _id, std::string&& _data ) : id( _id ), data( _data ) {}
     LexicToken( int _id, const std::string& _data ) : id( _id ), data( _data ) {}
-}
+};
 
 /*! Lexical parsing class.
  *  - Tokenizes the stream by given lexical grammar data.
@@ -37,14 +37,14 @@ public:
      *  @param useBlockingQueue - if set, tokens will be put 
      *         into a thread-safe blocking queue.
      */ 
-    Lexer( const gbnf::GbnfData& lexicData, bool useBlockingQueue = false );
-    Lexer( gbnf::GbnfData&& lexicData, bool useBlockingQueue = false );
+    Lexer( const gbnf::GbnfData& lexicData, std::istream& stream, bool useBlockingQueue = false );
+    Lexer( gbnf::GbnfData&& lexicData, std::istream& stream, bool useBlockingQueue = false );
     virtual ~Lexer();
 
     /*! Starts parsing tokens from stream to the queue.
      *  - Works only if useBlockingQueue param is specified on construction.
      */ 
-    void start();
+    virtual void start();
 
     /*! Returns next token from a stream.
      *  - If useBlockingQueue is set, it's called from a different thread.
@@ -54,8 +54,8 @@ public:
      *  @param tok - a reference to a token to fill.
      *  @return true if there are more tokens to read.
      */ 
-    bool getNextToken( LexicToken& tok );
-}
+    virtual bool getNextToken( LexicToken& tok );
+};
 
 /*! Automated lexical parser class.
  *  Used only by the parser generator.
@@ -67,7 +67,7 @@ public:
     virtual ~AutoLexer();
     
     bool getNextToken( LexicToken& tok );
-}
+};
 
 #endif // LEXER_HPP_INCLUDED
 

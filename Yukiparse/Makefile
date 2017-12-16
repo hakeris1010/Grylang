@@ -42,7 +42,7 @@ ZSH_RESULT:=$(shell mkdir -p $(TESTDIR) $(LIBDIR) \
 
 YUKIPARSE:=yukiparse
 	   
-SOURCES_YUKIPARSE= 
+SOURCES_YUKIPARSE= src/lexer.cpp
 
 HEADERS_YUKIPARSE= src/yukiparse.hpp \
 				   src/lexer.hpp
