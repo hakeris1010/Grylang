@@ -20,14 +20,23 @@ struct LexicToken{
     LexicToken( int _id, const std::string& _data ) : id( _id ), data( _data ) {}
 };
 
+/*! Base lexer class.
+ * Other lexers (implementations and a public lexer) derive from this.
+ */ 
+class BaseLexer{
+public:
+    virtual void start() = 0;
+    virtual bool getNextToken( LexicToken& tok ) = 0;
+};
+
 /*! Lexical parsing class.
  *  - Tokenizes the stream by given lexical grammar data.
  *  - Is fully thread-safe, and uses blocking queues for data sharing.
  *  - By now, tokenizing is done only by using regexes.
  */ 
-class Lexer{
+class Lexer : public BaseLexer{
 private:
-    std::unique_ptr< Lexer > impl;
+    std::unique_ptr< BaseLexer > impl;
 
 public:
     /*! Constructors.
@@ -61,13 +70,15 @@ public:
  *  Used only by the parser generator.
  *  All rules are hard-coded.
  */  
-class AutoLexer{
+class AutoLexer : public BaseLexer{
 public:
     AutoLexer( std::istream& strm );
     virtual ~AutoLexer();
     
     bool getNextToken( LexicToken& tok );
 };
+
+}
 
 #endif // LEXER_HPP_INCLUDED
 
