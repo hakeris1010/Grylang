@@ -175,5 +175,5 @@ clean:
 
 clean_all: clean
 	
-#nyaa~~ "$(RM) $(BINDIR) $(LIBDIR)"
+#nyaa~~ "rrrrrrrrmmmmmmm $(BINDIR) $(LIBDIR)"
 
