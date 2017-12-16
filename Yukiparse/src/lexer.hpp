@@ -16,6 +16,7 @@ struct LexicToken{
     int id;
     std::string data;    
 
+    LexicToken(){}
     LexicToken( int _id, std::string&& _data ) : id( _id ), data( _data ) {}
     LexicToken( int _id, const std::string& _data ) : id( _id ), data( _data ) {}
 };
