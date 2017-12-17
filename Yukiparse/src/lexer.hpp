@@ -21,11 +21,18 @@ struct LexicToken{
     LexicToken( int _id, const std::string& _data ) : id( _id ), data( _data ) {}
 };
 
+inline std::ostream& operator<<( std::ostream& os, const LexicToken& tok ){
+    os<<"id: "<< tok.id <<", data: \""<< tok.data << "\"";
+    return os;
+}
+
 /*! Base lexer class.
  * Other lexers (implementations and a public lexer) derive from this.
  */ 
 class BaseLexer{
 public:
+    virtual ~BaseLexer(){}
+
     virtual void start() = 0;
     virtual bool getNextToken( LexicToken& tok ) = 0;
 };
@@ -49,12 +56,12 @@ public:
      */ 
     Lexer( const gbnf::GbnfData& lexicData, std::istream& stream, bool useBlockingQueue = false );
     Lexer( gbnf::GbnfData&& lexicData, std::istream& stream, bool useBlockingQueue = false );
-    virtual ~Lexer();
+    ~Lexer(){}
 
     /*! Starts parsing tokens from stream to the queue.
      *  - Works only if useBlockingQueue param is specified on construction.
      */ 
-    virtual void start();
+    void start();
 
     /*! Returns next token from a stream.
      *  - If useBlockingQueue is set, it's called from a different thread.
@@ -64,7 +71,7 @@ public:
      *  @param tok - a reference to a token to fill.
      *  @return true if there are more tokens to read.
      */ 
-    virtual bool getNextToken( LexicToken& tok );
+    bool getNextToken( LexicToken& tok );
 };
 
 /*! Automated lexical parser class.
