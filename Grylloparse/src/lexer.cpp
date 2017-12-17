@@ -2,7 +2,7 @@
 #include <gryltools/blockingqueue.hpp>
 #include <gryltools/stackreader.hpp>
 
-namespace yparse{
+namespace gparse{
 
 class LexerImpl : public BaseLexer
 {

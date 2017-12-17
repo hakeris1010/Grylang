@@ -1,6 +1,6 @@
 #include <iostream>
 #include <sstream>
-#include "yukiparse.hpp"
+#include "grylloparse.hpp"
 #include "lexer.hpp"
 
 // Test Lexics.
@@ -33,11 +33,11 @@ int main(int argc, char** argv){
 
     std::istringstream pstream( testProgram );
 
-    yparse::Lexer lexer( lexicData, pstream );
+    gparse::Lexer lexer( lexicData, pstream );
 
     bool areMore = true;
     while( areMore ){
-        yparse::LexicToken tok;
+        gparse::LexicToken tok;
         areMore = lexer.getNextToken( tok );
 
         if(areMore)

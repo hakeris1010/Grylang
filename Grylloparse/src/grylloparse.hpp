@@ -4,7 +4,7 @@
 #include <gbnf/gbnf.hpp>
 #include <memory>
 
-namespace yparse{
+namespace gparse{
 
 class ParserGenerator{
     private:

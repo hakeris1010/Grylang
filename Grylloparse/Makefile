@@ -27,7 +27,7 @@ BINDIR_RELEASE= $(BINDIR)/release
 BINDIR_DEBUG= $(BINDIR)/debug
 
 #====================================#
-# Set Dependencies: Gryltools and YUKIPARSE. 
+# Set Dependencies: Gryltools and GRYLLOPARSE. 
 
 INCLUDES= -I../gryltools/libGrylTools/include -I../gbnf/include
 LIBCLUDES= -L../gryltools/libGrylTools/lib/static -L../gbnf/lib/static
@@ -38,36 +38,36 @@ ZSH_RESULT:=$(shell mkdir -p $(TESTDIR) $(LIBDIR) \
    			$(LIBDIR)/static $(LIBDIR)/shared \
 			$(BINDIR_RELEASE) $(BINDIR_DEBUG) $(INCLUDEDIR))
 
-#--------- YUKIPARSE Sources ---------#
+#--------- GRYLLOPARSE Sources ---------#
 
-YUKIPARSE:=yukiparse
+GRYLLOPARSE:=grylloparse
 	   
-SOURCES_YUKIPARSE= src/lexer.cpp
+SOURCES_GRYLLOPARSE= src/lexer.cpp
 
-HEADERS_YUKIPARSE= src/yukiparse.hpp \
-				   src/lexer.hpp
+HEADERS_GRYLLOPARSE= src/grylloparse.hpp \
+			   		 src/lexer.hpp
 
-LIBS_YUKIPARSE:= -lgbnf -lgryltools
+LIBS_GRYLLOPARSE:= -lgbnf -lgryltools
 
-#--------- YUKIPARSE Program ---------#
+#--------- GRYLLOPARSE Program ---------#
 
-YUKIPARSEPROGRAM= yukiprogram
+GRYLLOPARSEPROGRAM= gparseprogram
 
-YUKIPARSEPROGRAM_SOURCES= src/yukiprogram.cpp 
+GRYLLOPARSEPROGRAM_SOURCES= src/gparseprogram.cpp 
 
-YUKIPARSEPROGRAM_LIBS:= -l$(YUKIPARSE) $(LIBS_YUKIPARSE)
+GRYLLOPARSEPROGRAM_LIBS:= -l$(GRYLLOPARSE) $(LIBS_GRYLLOPARSE)
 
 #--------- Test sources ---------#
 
 TEST_SOURCES= src/test/test1.cpp 
 
-TEST_LIBS= -l$(YUKIPARSE)
+TEST_LIBS= -l$(GRYLLOPARSE)
 
 #====================================#
 
-YUKIPARSE_INCL= $(INCLUDEDIR)/$(YUKIPARSE)
-YUKIPARSE_LIB= $(LIBDIR)/static/lib$(YUKIPARSE)
-YUKIPARSE_SHARED= $(LIBDIR)/shared/lib$(YUKIPARSE)
+GRYLLOPARSE_INCL= $(INCLUDEDIR)/$(GRYLLOPARSE)
+GRYLLOPARSE_LIB= $(LIBDIR)/static/lib$(GRYLLOPARSE)
+GRYLLOPARSE_SHARED= $(LIBDIR)/shared/lib$(GRYLLOPARSE)
 
 #====================================#
 # Includes/Libcludes.
@@ -92,18 +92,18 @@ LDFLAGS += $(LIBCLUDES)
 # set os-dependent stuff
 ifeq ($(OS),Windows_NT)
     #LDFLAGS += -lkernel32 -lWs2_32
-	#LIBS_YUKIPARSE += -lWs2_32 -lkernel32
+	#LIBS_GRYLLOPARSE += -lWs2_32 -lkernel32
 
-	YUKIPARSE_SHARED:= $(YUKIPARSE_SHARED).dll
-	YUKIPARSE_LIB:= $(YUKIPARSE_LIB).a
+	GRYLLOPARSE_SHARED:= $(GRYLLOPARSE_SHARED).dll
+	GRYLLOPARSE_LIB:= $(GRYLLOPARSE_LIB).a
 
 else
     CFLAGS += -std=gnu99 -pthread	
 	CXXFLAGS += -std=gnu11 -pthread
     #LDFLAGS += -pthread
 
-	YUKIPARSE_SHARED:= $(YUKIPARSE_SHARED).so
-	YUKIPARSE_LIB:= $(YUKIPARSE_LIB).a
+	GRYLLOPARSE_SHARED:= $(GRYLLOPARSE_SHARED).so
+	GRYLLOPARSE_LIB:= $(GRYLLOPARSE_LIB).a
 endif
 
 #====================================#
@@ -123,29 +123,29 @@ relops:
 	$(eval LDFLAGS += $(RELEASE_LDFLAGS) $(RELEASE_LIBCLUDES)) 
 	$(eval BINPREFIX = $(BINDIR_RELEASE)) 
 
-debug: debops $(YUKIPARSE) test_main 
-release: relops $(YUKIPARSE) test_main 
+debug: debops $(GRYLLOPARSE) test_main 
+release: relops $(GRYLLOPARSE) test_main 
 
-$(YUKIPARSE): yuki_incl $(YUKIPARSE_LIB) $(YUKIPARSEPROGRAM) # $(YUKIPARSE_SHARED)   
-$(YUKIPARSE)_debug: debops $(YUKIPARSE)
+$(GRYLLOPARSE): gryllo_incl $(GRYLLOPARSE_LIB) $(GRYLLOPARSEPROGRAM) # $(GRYLLOPARSE_SHARED)   
+$(GRYLLOPARSE)_debug: debops $(GRYLLOPARSE)
 
 .cpp.o:
 	$(CXX) $(CXXFLAGS) -fpic -c $*.cpp -o $*.o
 
-yuki_incl: $(HEADERS_YUKIPARSE) 
-	mkdir -p $(YUKIPARSE_INCL) 
+gryllo_incl: $(HEADERS_GRYLLOPARSE) 
+	mkdir -p $(GRYLLOPARSE_INCL) 
 	for file in $^ ; do \
-		cp -u $$file $(YUKIPARSE_INCL) ; \
+		cp -u $$file $(GRYLLOPARSE_INCL) ; \
 	done
 	
-$(YUKIPARSE_LIB): $(SOURCES_YUKIPARSE:.cpp=.o) 
+$(GRYLLOPARSE_LIB): $(SOURCES_GRYLLOPARSE:.cpp=.o) 
 	$(AR) -rvsc $@ $^ 
 
-$(YUKIPARSE_SHARED): $(SOURCES_YUKIPARSE:.cpp=.o) 
-	$(CXX) -shared -o $(YUKIPARSE_SHARED) $^ -Wl,--whole-archive $(LIBS_YUKIPARSE) -Wl,--no-whole-archive $(LDFLAGS) 
+$(GRYLLOPARSE_SHARED): $(SOURCES_GRYLLOPARSE:.cpp=.o) 
+	$(CXX) -shared -o $(GRYLLOPARSE_SHARED) $^ -Wl,--whole-archive $(LIBS_GRYLLOPARSE) -Wl,--no-whole-archive $(LDFLAGS) 
 
-$(YUKIPARSEPROGRAM): $(YUKIPARSEPROGRAM_SOURCES:.cpp=.o)
-	$(CXX) $(LDFLAGS) -o $(BINPREFIX)/$@ $^ $(YUKIPARSEPROGRAM_LIBS)
+$(GRYLLOPARSEPROGRAM): $(GRYLLOPARSEPROGRAM_SOURCES:.cpp=.o)
+	$(CXX) $(LDFLAGS) -o $(BINPREFIX)/$@ $^ $(GRYLLOPARSEPROGRAM_LIBS)
 
 #===================================#
 # Tests

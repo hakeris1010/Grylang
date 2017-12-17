@@ -5,7 +5,7 @@
 #include <string>
 #include <gbnf/gbnf.hpp>
 
-namespace yparse{
+namespace gparse{
 
 /*! Token structure.
  *  Includes type and data.
