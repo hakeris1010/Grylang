@@ -7,6 +7,7 @@ namespace yparse{
 class LexerImpl : public BaseLexer
 {
 private:
+    // Mode and Lexic Data
     const bool useBlockingQueue;
     const gbnf::GbnfData lexics;
 
@@ -15,6 +16,9 @@ private:
 
     // We'll use this only if useBlockingQueue.
     std::unique_ptr< gtools::BlockingQueue< LexicToken > > bQueue;
+
+    // Tokenizing parameters
+    std::string delimiters;
      
     // State variables
     volatile bool running = false; 

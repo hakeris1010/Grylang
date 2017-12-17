@@ -41,7 +41,22 @@ public:
  *  - Tokenizes the stream by given lexical grammar data.
  *  - Is fully thread-safe, and uses blocking queues for data sharing.
  *  - By now, tokenizing is done only by using regexes.
- */ 
+ *
+ *  Supported GBNF Lexics:
+ *  - Must contain a <delim> rule, which defines the delimiters to use when tokenizing.
+ *  - The lexem-defining rules must be 1-option only, and the only 
+ *    option token must be of REGEX_STRING type.
+ *  - Exception is a delimiter - it can contain options referencing to other types.  
+ *
+ *  TODO: Tokenizable and Non-Tokenizable language support.
+ *      - If <delim> tag is found, treat language as tokenizeable, and use ReGeX 
+ *        to parse tokens.
+ *      - However, if no <delim> is found, treat language as Non-Tokenizable. 
+ *        Then ReGeX will be impossible to use, so we'll have these options:
+ *        1. Just pass individual chars to a parser
+ *        2. Parse tokens with a parsing algorithm (lexer will use yet another Parser).
+ *        3. Use a unified Lexer-Parser (related to #2).
+ */
 class Lexer : public BaseLexer{
 private:
     std::unique_ptr< BaseLexer > impl;
