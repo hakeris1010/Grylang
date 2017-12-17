@@ -3,6 +3,22 @@
 #include <gryltools/stackreader.hpp>
 
 namespace gparse{
+/*
+ *  Supported Lexics:
+ *  - Must contain a <delim> rule, which defines the delimiters to use when tokenizing.
+ *  - The lexem-defining rules must be 1-option only, and the only 
+ *    option token must be of REGEX_STRING type.
+ *  - Exception is a delimiter - it can contain options referencing to other types.  
+ *
+ *  TODO: Tokenizable and Non-Tokenizable language support.
+ *      - If <delim> tag is found, treat language as tokenizeable, and use ReGeX 
+ *        to parse tokens.
+ *      - However, if no <delim> is found, treat language as Non-Tokenizable. 
+ *        Then ReGeX will be impossible to use, so we'll have these options:
+ *        1. Just pass individual chars to a parser
+ *        2. Parse tokens with a parsing algorithm (lexer will use yet another Parser).
+ *        3. Use a unified Lexer-Parser (related to #2).
+ */
 
 /*! Urgent TODO: 
  *  - Use not GBNF lexic format, but specific RegLex format.
@@ -64,83 +80,6 @@ public:
 void LexerImpl::throwError( std::string message ){
     throw std::runtime_error( "[" + std::to_string( lineCount ) +":"+
                              std::to_string( posInLine )+"]: "+message );
-}
-
-/*! Function checks if assigned GBNF-type lexics are supported.
- *  @throws an exception if lexics contain wrong rules/tokens.
- *
- *  Supported Lexics:
- *  - Must contain a <delim> rule, which defines the delimiters to use when tokenizing.
- *  - The lexem-defining rules must be 1-option only, and the only 
- *    option token must be of REGEX_STRING type.
- *  - Exception is a delimiter - it can contain options referencing to other types.  
- *
- *  TODO: Tokenizable and Non-Tokenizable language support.
- *      - If <delim> tag is found, treat language as tokenizeable, and use ReGeX 
- *        to parse tokens.
- *      - However, if no <delim> is found, treat language as Non-Tokenizable. 
- *        Then ReGeX will be impossible to use, so we'll have these options:
- *        1. Just pass individual chars to a parser
- *        2. Parse tokens with a parsing algorithm (lexer will use yet another Parser).
- *        3. Use a unified Lexer-Parser (related to #2).
- */ 
-void LexerImpl::checkLexics( bool checkGrams ){
-    // Find if delimiter is there.
-    short delimTag = -1;
-    for( auto&& nt : lexics.tagTable ){
-        if( nt.data == "delim" ){
-            delimTag = nt.ID;
-            break;
-        }
-    }
-    
-    // If delim tag not found, we must throw an error.
-    // TODO: Use No-Delimiting parser mode if no <delim> tag.
-    if( delimTag == -1 )
-        throwError( "[Construction]: No <delim> tag found in NonTerminal tag table." );
-
-    // Check every rule if it complies to the supported format.
-    if( checkGrams ){
-        // TODO.
-    }
-
-    // Now get the deliminator list from the deliminator tag.
-    auto&& delimIter = lexics.grammarTable.find( delimTag );
-    if( delimIter == lexics.grammarTable.end() )
-        throwError("[Construction]: <delim> rule is not present.");
-
-    // Collect the delimiter regex recursively from the "delim" rule.
-    collectRegexStringFromGTokens( delimiters, *(delimIter) );
-}
-
-/*! Recursively collects the string segments into one Regex,
- *  traversing the grammar tokens.
- *  @param str - string to which to append all the collected stuff
- *  @param rule - starting GrammarRule,
- *  @param recLevel - level of recursion.
- */ 
-void LexerImpl::collectRegexStringFromGTokens( std::string& str, const auto& rule, int recl ){
-    // Regex group start
-    str += "[";
-    for( auto&& opt : delimRule.options ){
-        auto&& token = opt.children[0];
-        str += "(?:"; // Non-Capturing group
-
-        if( token.type == gbnf::GrammarToken::REGEX_STRING )
-            str += token.data;
-
-        else if( token.type == gbnf::GrammarToken::TAG_ID ){
-            // Find rule which defines this tag, and launch a collector on that rule.
-            auto&& iter = lexics.grammarTable.find( token.id );
-            if( delimIter == lexics.grammarTable.end() )
-                throwError("[collectRegexString]: ["+ std::to_string(token.id) +
-                           "] rule is not present in table.");     
-        }
-
-        str += ")";
-    }
-    // Regex group end.
-    str += "]";
 }
 
 /*! Main backend function.
