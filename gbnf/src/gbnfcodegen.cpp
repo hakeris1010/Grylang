@@ -181,7 +181,7 @@ void CodeGenerator::outputEnd(){
 }
 
 void CodeGenerator::generateConstructionCode( const GbnfData& gbData, 
-                                        const std::string& varName ){
+                            const std::string& varName, int verbosity ){
     impl->generate( gbData, varName );
 }
 

@@ -392,8 +392,10 @@ void ParseInput::convert(){
             
             logf(dbg, 2, "Grammar Rule started. Getting it...\n");
 
-            data.grammarTable.push_back( GrammarRule() );
-            parseGrammarRule( data.grammarTable[ data.grammarTable.size()-1 ] );
+            GrammarRule tempRule;
+            parseGrammarRule( tempRule );
+
+            data.grammarTable.insert( std::move( tempRule ) ); // Best part: std::move :D
         }
         else // If other non-whitespace character occured between rules and comments, error.  
             throwError(" : Wrong start symbol!" );

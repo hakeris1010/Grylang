@@ -84,11 +84,12 @@ int main(int argc, char** argv){
     if(argc > 1){
         for(int i=1; i<argc; i++){
             // Check for flag switches
-            if((!strcmp(argv[i], "-v") || !strcmp(argv[i], "--verbose")) && !verbosity)
-                verbosity = 1;
-            else if(((!strcmp(argv[i], "-v") || !strcmp(argv[i], "--verbose")) && verbosity) ||
-                    (!strcmp(argv[i], "-vv") || !strcmp(argv[i], "--mega-verbose")) )
-                verbosity = 2;
+            if( (!strcmp(argv[i], "-v") || !strcmp(argv[i], "--verbose")) )
+                verbosity++;
+            else if(!strcmp(argv[i], "-vv") || !strcmp(argv[i], "--mega-verbose")) 
+                verbosity += 2;
+            else if(!strcmp(argv[i], "-vvv") || !strcmp(argv[i], "--ultra-verbose")) 
+                verbosity += 3; 
 
             else if( !strcmp(argv[i], "--debug=true") || !strcmp(argv[i], "--debug") )
                 debug = true;
@@ -156,7 +157,7 @@ int main(int argc, char** argv){
     }
 
     // Output everything if mega verbose.
-    if( verbosity > 0 ){
+    if( verbosity > 1 ){
         std::cout<<"Final setup:\n inFiles: "<< inFiles.size() <<"\n debug: "<<debug;
         std::cout<<"\n verbosity: "<<verbosity<<"\n convertToBnf: "<<convertToBnf;
         std::cout<<"\n recursionFixMode: "<< recursionFixMode <<"\n\n";
@@ -167,35 +168,43 @@ int main(int argc, char** argv){
 
     // Run through each input, and produce an output
     for( auto& a : inFiles ){
-        std::cout<<"\nParsing file: "<< a.filename <<"\n";
+        if( verbosity > 0)
+            std::cout<<"\nParsing file: "<< a.filename <<"\n";
 
         // Allocate data.
         gbnf::GbnfData data;
 
         // Parse file to GBNF
-        std::cout<<" Parsing to GBNF...\n";
-        gbnf::convertToGbnf( data, *(a.is), verbosity );
+        gbnf::convertToGbnf( data, *(a.is), verbosity-1 );
+
+        if( verbosity > 0)
+            std::cout<<" Parsed to GBNF. No. of Rules: "<< data.grammarTable.size() <<"\n";
 
         // Convert to BNF
         if( convertToBnf ){
-            std::cout<<" Converting to BNF...\n";
-
             gbnf::convertToBNF( data, ( recursionFixMode == 
-                    gbnf::FIX_LEFT_RECURSION ? true : false ) );
+                gbnf::FIX_LEFT_RECURSION ? true : false ), verbosity-1 );
+
+            if( verbosity > 0){
+                std::cout<<" Converted to BNF. No. of Rules: "<< 
+                    data.grammarTable.size() <<"\n";
+            }
         }
 
         // Fixing recursion
         if( recursionFixMode ){    
-            std::cout<<" Fixing recursion: ";
+            if( verbosity > 0)
+                std::cout<<" Fixing recursion: ";
             std::cout<< (recursionFixMode==gbnf::FIX_LEFT_RECURSION ? "left" : "right") <<"\n";
         
-            gbnf::fixRecursion( data, recursionFixMode );
+            gbnf::fixRecursion( data, recursionFixMode, verbosity-1 );
         }
     
         // Generating
-        std::cout<<" Generating Code ... \n";
+        if( verbosity > 0)
+            std::cout<<" Generating Code ... \n";
 
-        gen.generateConstructionCode( data, a.filename ); 
+        gen.generateConstructionCode( data, a.filename, verbosity-1 ); 
     }
 
     gen.outputEnd();

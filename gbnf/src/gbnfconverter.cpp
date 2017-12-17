@@ -17,7 +17,7 @@ public:
     void convert();
 
     short createNewRuleAndGetTag( GrammarToken&& rootToken, int recLevel = 0 );
-    void fixNonBNFTokensInRule( GrammarRule& rule, int recLevel = 0 );
+    void fixNonBNFTokensInRule( const GrammarRule& rule, int recLevel = 0 );
 };
 
 
@@ -117,10 +117,18 @@ short ConverterToBNF::createNewRuleAndGetTag( GrammarToken&& token, int recLevel
  *      separate rule, and the token in current Rule is being replaced by a tag of
  *      a new rule.
  *
- *  @param rule - a reference to a GrammarRule being fixed.
+ *  @param rule - a const reference to a GrammarRule being fixed.
+ *      NOTE: reference is "const" because the ID of the rule must not be modified.
+ *            However, we can modify the options of the rule (hence "fixing").
+ *            The "options" vector is declared "mutable", to allow modification 
+ *            even if the parent object is "const".
+ *
+ *            We use this technique as a little hack to allow Rules to be
+ *            stored in a std::set.
+ *
  *  @param recLevel - recursion level.
  */ 
-void ConverterToBNF::fixNonBNFTokensInRule( GrammarRule& rule, int recLevel ){
+void ConverterToBNF::fixNonBNFTokensInRule( const GrammarRule& rule, int recLevel ){
     // Loop through all the options of the rule, and 
     // check every token of every option, if it hasn't got more layers.
     const size_t optSize = rule.options.size();
@@ -181,17 +189,16 @@ void ConverterToBNF::fixNonBNFTokensInRule( GrammarRule& rule, int recLevel ){
 
 void ConverterToBNF::convert(){
     // Search for rules which contain eBNF tokens.
-    for( auto& rule : data.grammarTable ){
+    for( auto&& rule : data.grammarTable ){
         // For each rule, pass it to this function, which modifies the rule, 
         // fixing Non-BNF tokens.
         fixNonBNFTokensInRule( rule );
     }
 
     // At the end, append newly constructed rules to grammar table.
-    data.grammarTable.insert( 
-          data.grammarTable.end(),
-          newRules.begin(), newRules.end() 
-    );
+    for( auto&& rl : newRules ){
+        data.grammarTable.insert( std::move( rl ) );
+    }
 }
 
 //============= PUBLIC SECTION =============//

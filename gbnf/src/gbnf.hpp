@@ -83,13 +83,16 @@ namespace gbnf{
  */ 
 struct NonTerminal{
     short ID;
-    std::string data;
+
+    // Mark as "mutable" to allow modification of this field while iterating 
+    // in std::set using a reference to this object.
+    mutable std::string data;
 
     NonTerminal( short _ID, const std::string& _data ) : ID( _ID ), data( _data ) {}
 
     // Comparation function.
-    static bool compare(const NonTerminal& a, const NonTerminal& b){ 
-        return a.ID < b.ID; 
+    bool operator< (const NonTerminal& other) const { 
+        return this->ID < other.ID; 
     }
 };
 
@@ -139,7 +142,7 @@ inline std::ostream& operator<< (std::ostream& os, const GrammarToken& tok){
  */ 
 struct GrammarRule{
     short ID;
-    std::vector<GrammarToken> options; 
+    mutable std::vector<GrammarToken> options; 
 
     GrammarRule(){}
     GrammarRule(short _ID, const std::initializer_list< GrammarToken >& _options)
@@ -150,6 +153,11 @@ struct GrammarRule{
     {} 
 
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const ;
+
+    // Comparation function.
+    bool operator< ( const GrammarRule& other ) const {
+        return this->ID < other.ID; 
+    } 
 };
 
 inline std::ostream& operator<< (std::ostream& os, const GrammarRule& rule){
@@ -171,13 +179,32 @@ public:
     const static int RIGHT_RECURSIVE = 8;
 
     int flags = 0;
-    std::set<NonTerminal, std::function<bool (const NonTerminal&, const NonTerminal&)>> tagTable; 
-    std::vector<GrammarRule> grammarTable;
 
-    GbnfData() : tagTable ( NonTerminal::compare ) {}
-    GbnfData( int flag, const std::initializer_list< NonTerminal >& tagTbl, 
-                        const std::initializer_list< GrammarRule >& grammarTbl )
-        : flags( flag ), tagTable( tagTbl, NonTerminal::compare ), grammarTable( grammarTbl )
+    // Now we use std::set for grammar rules too.
+    /*std::set<NonTerminal
+            bool (const NonTerminal&, const NonTerminal&)>> 
+        tagTable; 
+
+    std::set<GrammarRule, std::function<
+            bool (const GrammarRule&, const GrammarRule&)>> 
+        grammarTable; 
+    */
+    std::set< NonTerminal > tagTable; 
+    std::set< GrammarRule > grammarTable;  
+
+    //std::vector<GrammarRule> grammarTable;
+
+    /*GbnfData() : tagTable ( NonTerminal::compare ), grammarTable( GrammarRule::compare ) {}
+    GbnfData( int flag, std::initializer_list< NonTerminal >&& tagTbl, 
+                        std::initializer_list< GrammarRule >&& grammarTbl )
+        : flags( flag ), tagTable( tagTbl, NonTerminal::compare ), 
+          grammarTable( grammarTbl, GrammarRule::compare )
+    {}*/
+     
+    GbnfData(){}
+    GbnfData( int flag, std::initializer_list< NonTerminal >&& tagTbl, 
+                        std::initializer_list< GrammarRule >&& grammarTbl )
+        : flags( flag ), tagTable( tagTbl ), grammarTable( grammarTbl )
     {}
 
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const;
@@ -222,7 +249,7 @@ public:
 
     void outputStart();
     void outputEnd();
-    void generateConstructionCode( const GbnfData& gbData, const std::string& varName );
+    void generateConstructionCode( const GbnfData& gbData, const std::string& varName, int v=0 );
 };
 
 /*! Function uses the EBNF format input from the 'input' stream to fill up the 'data' structure. 
