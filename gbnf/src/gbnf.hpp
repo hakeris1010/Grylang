@@ -67,7 +67,8 @@
 #define GBNF_H_INCLUDED
 
 #include <string>
-#include <set>
+//#include <set>
+#include <map>
 #include <functional>
 #include <vector>
 #include <istream>
@@ -82,13 +83,13 @@ namespace gbnf{
  *  - Non-Terminals are defined in the Grammar Rule table.
  */ 
 struct NonTerminal{
-    short ID;
+    const size_t ID;
 
     // Mark as "mutable" to allow modification of this field while iterating 
     // in std::set using a reference to this object.
     mutable std::string data;
 
-    NonTerminal( short _ID, const std::string& _data ) : ID( _ID ), data( _data ) {}
+    NonTerminal( int _ID, const std::string& _data ) : ID( _ID ), data( _data ) {}
 
     // Comparation function.
     bool operator< (const NonTerminal& other) const { 
@@ -112,16 +113,16 @@ struct GrammarToken{
     const static char ROOT_TOKEN        = 'r';
 
     char type = 'r';
-    short id = 0;
+    size_t id = 0;
     std::string data;
     std::vector<GrammarToken> children;
 
     GrammarToken(){}
-    GrammarToken( char _type, short _id, const std::string& _data, 
+    GrammarToken( char _type, int _id, const std::string& _data, 
                   const std::initializer_list< GrammarToken >& _children = {} )
         : type( _type ), id( _id ), data( _data ), children( _children )
     {}
-    GrammarToken( char _type, short _id, const std::string& _data, 
+    GrammarToken( char _type, int _id, const std::string& _data, 
                   std::vector< GrammarToken >&& _children )
         : type( _type ), id( _id ), data( _data ), children( std::move(_children) )
     {}
@@ -141,14 +142,14 @@ inline std::ostream& operator<< (std::ostream& os, const GrammarToken& tok){
  *  Options for rule are stored as a vector of Token Trees (GrammarToken type is ROOT_TOKEN).
  */ 
 struct GrammarRule{
-    short ID;
+    const size_t ID;
     mutable std::vector<GrammarToken> options; 
 
     GrammarRule(){}
-    GrammarRule(short _ID, const std::initializer_list< GrammarToken >& _options)
+    GrammarRule(int _ID, const std::initializer_list< GrammarToken >& _options)
         : ID( _ID ), options( _options )
     {}
-    GrammarRule(short _ID, std::vector< GrammarToken >&& _options)
+    GrammarRule(int _ID, std::vector< GrammarToken >&& _options)
         : ID( _ID ), options( std::move( _options ) )
     {} 
 
@@ -167,10 +168,19 @@ inline std::ostream& operator<< (std::ostream& os, const GrammarRule& rule){
 
 /*! Whole-File structure.  
  *  This is the structure which holds the whole grammar which is being worked with.
+ *
+ *  New model - use Sorted Vectors.
  */ 
-struct GbnfData{
+class GbnfData{
 private:
-    short lastTagID = 0;
+    int lastTagID = 0;
+    int lastRuleID = 0;
+    bool sorted = false;
+
+    int flags = 0;
+
+    std::vector< NonTerminal > tagTable; 
+    std::vector< GrammarRule > grammarTable;     
 
 public:
     const static int FORMAT_EBNF     = 1;
@@ -178,40 +188,93 @@ public:
     const static int LEFT_RECURSIVE  = 4;
     const static int RIGHT_RECURSIVE = 8;
 
-    int flags = 0;
+    //std::set< NonTerminal > tagTable; 
+    //std::set< GrammarRule > grammarTable;  
+    //std::map< int, NonTerminal > tagTable; 
+    //std::map< int, GrammarRule > grammarTable;   
 
-    // Now we use std::set for grammar rules too.
-    /*std::set<NonTerminal
-            bool (const NonTerminal&, const NonTerminal&)>> 
-        tagTable; 
-
-    std::set<GrammarRule, std::function<
-            bool (const GrammarRule&, const GrammarRule&)>> 
-        grammarTable; 
-    */
-    std::set< NonTerminal > tagTable; 
-    std::set< GrammarRule > grammarTable;  
-
-    //std::vector<GrammarRule> grammarTable;
-
-    /*GbnfData() : tagTable ( NonTerminal::compare ), grammarTable( GrammarRule::compare ) {}
-    GbnfData( int flag, std::initializer_list< NonTerminal >&& tagTbl, 
-                        std::initializer_list< GrammarRule >&& grammarTbl )
-        : flags( flag ), tagTable( tagTbl, NonTerminal::compare ), 
-          grammarTable( grammarTbl, GrammarRule::compare )
-    {}*/
-     
     GbnfData(){}
     GbnfData( int flag, std::initializer_list< NonTerminal >&& tagTbl, 
                         std::initializer_list< GrammarRule >&& grammarTbl )
-        : flags( flag ), tagTable( tagTbl ), grammarTable( grammarTbl )
-    {}
+        : flags( flag ), tagTable( std::move(tagTbl) ), grammarTable( std::move(grammarTbl) )
+    {
+        /*for( auto&& a : tagTbl ){
+            tagTable.insert( std::pair<int, NonTerminal> (a.ID, std::move(a)) );   
+        }           
+        for( auto&& a : grammarTbl ){
+            grammarTbl.insert( std::pair<int, GrammarRule> (a.ID, std::move(a)) );   
+        } */
+    }
 
+    // Last tag getters.
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const;
-    short getLastTagID() const { return lastTagID; }
+    inline int getLastTagID() const { return lastTagID; }
+    inline int getLastRuleID() const { return lastRuleID; }
+    inline bool isSorted() const { return sorted }
 
-    short getTagIDfromTable( const std::string& name, bool insertIfNotPresent );
-    short insertNewTag( const std::string& name );
+    // Get rules and tags by index ( ID ).    
+    inline NonTerminal& getTag( size_t i ) const {
+        return tagTable[ i ];
+    }
+
+    inline GrammarRule& getRule( size_t i ) const {
+        return grammarTable[ i ];
+    }
+
+    // GrammarRule inserters. Support move semantics.
+    inline void insertRule( GrammarRule&& rule ){
+        grammarTable.push_back( std::move(rule) );
+        sorted = false;
+    }
+    inline void insertRule( const GrammarRule& rule ){
+        grammarTable.push_back( rule );
+        sorted = false;
+    }
+ 
+    /* New Tag inserters.
+     * - ID is assigned automatically, so the vector is always sorted. 
+     * @return the ID of newly inserted tag.
+     */
+    inline size_t insertTag( const std::string& name ){
+        lastTagID++;
+        tagTable.push_back( NonTerminal( lastTagID, name ) );
+        return lastTagID;
+    }
+    inline size_t insertTag( std::string&& name ){
+        lastTagID++;
+        tagTable.push_back( NonTerminal( lastTagID, std::move(name) ) );
+        return lastTagID;
+    }
+    inline size_t insertTag( const char* name ){
+        lastTagID++;
+        tagTable.push_back( NonTerminal( lastTagID, std::string(name) ) );
+        return lastTagID;
+    }
+
+    size_t getTagIDfromTable( const std::string& name, bool insertIfNotPresent );
+
+    /*! Removers. 
+     *  - After removal the sorting order doesn't change.
+     */
+    inline void removeTag( size_t id ){
+        tagTable.erase( tagTable.begin() + id, 1 );
+    }
+    inline void removeRule( size_t id ){
+        if( !sorted )
+            sort();
+
+        grammarTable.erase( grammarTable.begin() + id, 1 );
+    }
+
+    /*! Sorter. Sorts the Grammar Rule Table by ID.
+     */
+    inline void sort(){
+        if( sorted )
+            return;
+
+        std::sort( grammarTable.begin(), grammarTable.end() );
+        sorted = true;
+    }
 };
 
 inline std::ostream& operator<< (std::ostream& os, const GbnfData& rule){

@@ -77,29 +77,17 @@ inline void ParseInput::logf( bool dewit, int priority,
  *  or to insert into a table a new NonTerminal with name = name. ID ass'd automatically.
  *  @return the ID of the tag got or inserted.
  */ 
-short GbnfData::getTagIDfromTable( const std::string& name, bool insertIfNotPresent ){
+size_t GbnfData::getTagIDfromTable( const std::string& name, bool insertIfNotPresent ){
     // Search by iteration, because we can't search for string sorted.
-    for(auto t : tagTable){
+    for(const auto& t : tagTable){
         if(t.data.compare( name ) == 0)
             return t.ID;
     }
     // If reached this point, element not found. Insert new NonTerminal Tag if flag specified.
-    if(insertIfNotPresent){
-        ++(this->lastTagID);
-        tagTable.insert( NonTerminal( this->lastTagID, name ) );
-        return this->lastTagID;
-    }
-    return -1;
-}
+    if(insertIfNotPresent)
+        return insertNewTag( name );
 
-/*! Actually inserts a NonTerminal tag into da taybol, and returns it's ID.
- * @param name - name of new tag.
- * @return ID of the newly inserted tag.
- */ 
-short GbnfData::insertNewTag( const std::string& name ){
-    ++(this->lastTagID);
-    tagTable.insert( NonTerminal( this->lastTagID, name ) );
-    return this->lastTagID;
+    return -1;
 }
 
 inline void ParseInput::updateLineStats( const std::string& str ) {
