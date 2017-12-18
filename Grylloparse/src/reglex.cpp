@@ -9,9 +9,9 @@ static inline void checkAndAssignLexicProperties(
         RegLexData& rl, const gbnf::GbnfData& gdata )
 {
     // Find if delimiter is there.
-    short regexDelimTag = -1;
-    short sDelimTag = -1;
-    for( auto&& nt : gdata.tagTable ){
+    size_t regexDelimTag = -1;
+    size_t sDelimTag = -1;
+    for( auto&& nt : gdata.tagTableConst() ){
         if( nt.data == "regex-delim" ){
             regexDelimTag = nt.ID;
             break;
@@ -35,11 +35,13 @@ static inline void checkAndAssignLexicProperties(
     // If using non-regex delimiters (simple characters), just assign data string.
     // Only STRING type token can define non-regex delimiters.
     if( !rl.useRegexDelimiters ){
-        auto&& delimIter = gdata.grammarTable.find( sDelimTag );
-        if( delimIter == gdata.grammarTable.end() )
+        // Check if rule's ID is valid.
+        if( sDelimTag >= gdata.grammarTableConst().size() )
             throw std::runtime_error("[RegLexData(GbnfData)]: <delim> rule is not present."); 
 
-        rl.nonRegexDelimiters = delimIter->options[0].children[0].data;
+        auto&& sDelimRule = gdata.getRule( sDelimTag );
+
+        rl.nonRegexDelimiters = delimRule.options[0].children[0].data;
     }
 
     // Collect the regexes for each rule.

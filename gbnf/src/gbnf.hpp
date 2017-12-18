@@ -122,8 +122,8 @@ struct GrammarToken{
 
     GrammarToken(){}
     GrammarToken( char _type, int _id, const std::string& _data, 
-                  const std::initializer_list< GrammarToken >& _children = {} )
-        : type( _type ), id( _id ), data( _data ), children( _children )
+                  std::initializer_list< GrammarToken >&& _children = {} )
+        : type( _type ), id( _id ), data( _data ), children( std::move(_children) )
     {}
     GrammarToken( char _type, int _id, const std::string& _data, 
                   std::vector< GrammarToken >&& _children )
@@ -152,8 +152,8 @@ public:
     mutable std::vector<GrammarToken> options; 
 
     GrammarRule(int _ID) : ID( _ID ) {}
-    GrammarRule(int _ID, const std::initializer_list< GrammarToken >& _options)
-        : ID( _ID ), options( _options )
+    GrammarRule(int _ID, std::initializer_list< GrammarToken >&& _options)
+        : ID( _ID ), options( std::move( _options ) )
     {}
     GrammarRule(int _ID, std::vector< GrammarToken >&& _options)
         : ID( _ID ), options( std::move( _options ) )
@@ -178,6 +178,84 @@ inline std::ostream& operator<< (std::ostream& os, const GrammarRule& rule){
  *
  *  New model - use Sorted Vectors.
  */ 
+class GbnfData_Map{
+private:
+    int lastTagID = 0;
+
+    std::map<size_t, NonTerminal> tagTable;
+    std::map<size_t, GrammarRule> grammarTable;
+
+public:
+    const static int FORMAT_EBNF     = 1;
+    const static int FORMAT_BNF      = 2;
+    const static int LEFT_RECURSIVE  = 4;
+    const static int RIGHT_RECURSIVE = 8;
+
+    GbnfData(){}
+    GbnfData( std::initializer_list< NonTerminal >&& tagTbl, 
+              std::initializer_list< GrammarRule >&& grammarTbl )
+    { 
+        for( auto&& a : tagTbl )
+            tagTable.insert( std::pair<size_t, NonTerminal>( a.getID(), std::move(a) ) );
+        for( auto&& a : grammarTbl )
+            grammarTable.insert( std::pair<size_t, GrammarRule>( a.getID(), std::move(a) ) ); 
+    }
+     
+    // Last tag getters.
+    void print( std::ostream& os, int mode=0, const std::string& leader="" ) const;
+    inline int getLastTagID() const { return lastTagID; }
+
+    // Get rules and tags by index ( ID ).    
+    inline auto& getTag( size_t i ) {
+        return (tagTable.find( i ))->second;
+    }
+    inline auto& getRule( size_t i ) {
+        return (grammarTable.find( i ))->second;
+    }
+
+    // GrammarRule inserters. Support move semantics.
+    inline void insertRule( GrammarRule&& rule ){
+        grammarTable.insert( std::pair<size_t, GrammarRule>( rule.getID(), std::move(rule) ) );
+    }
+    inline void insertRule( const GrammarRule& rule ){
+        grammarTable.insert( std::pair<size_t, GrammarRule>( rule.getID(), rule ) );
+    }
+ 
+    /* New Tag inserters.
+     * - ID is assigned automatically, so the vector is always sorted. 
+     * @return the ID of newly inserted tag.
+     */
+    inline size_t insertTag( const std::string& name ){
+        lastTagID++;
+        tagTable.insert( std::pair<size_t, NonTerminal>(
+            lastTagID, NonTerminal( lastTagID, name )) );
+        return lastTagID;
+    }
+    inline size_t insertTag( std::string&& name ){
+        lastTagID++;
+        tagTable.insert( std::pair<size_t, NonTerminal>( lastTagID, 
+                    NonTerminal( lastTagID, std::move( name ) )) ); 
+        return lastTagID;
+    }
+
+    size_t getTagIDfromTable( const std::string& name, bool insertIfNotPresent );
+
+    /*! Removers. 
+     *  - After removal the sorting order doesn't change.
+     */
+    inline void removeTag( size_t id ){
+        tagTable.erase( id );
+    }
+    inline void removeRule( size_t id ){
+        grammarTable.erase( id );
+    }
+};
+
+/*! Whole-File structure.  
+ *  This is the structure which holds the whole grammar which is being worked with.
+ *
+ *  New model - use Sorted Vectors.
+ */ 
 class GbnfData{
 private:
     int lastTagID = 0;
@@ -186,6 +264,8 @@ private:
 
     std::vector< NonTerminal > tagTable; 
     std::vector< GrammarRule > grammarTable;     
+    //std::map<size_t, NonTerminal> tagTable;
+    //std::map<size_t, GrammarRule> grammarTable;
 
 public:
     const static int FORMAT_EBNF     = 1;
@@ -214,11 +294,23 @@ public:
 
     // Get rules and tags by index ( ID ).    
     inline NonTerminal& getTag( size_t i ) {
-        return tagTable[ i ];
+        //if( i <= lastTagID )
+        //    return tagTable[ i ];
+        auto&& tmp = NonTerminal( i, std::string() );
+        auto&& it = std::lower_bound( tagTable.begin(), tagTable.end(), tmp ); 
+        if( it != tagTable.end() )
+            return *it;
     }
 
     inline GrammarRule& getRule( size_t i ) {
-        return grammarTable[ i ];
+        /*if( i < grammarTable.size() ){
+            if( grammarTable[i].getID() == i )
+                return grammarTable[i];
+        }*/
+        auto&& tmp = GrammarRule( i );
+        auto&& it = std::lower_bound( grammarTable.begin(), grammarTable.end(), tmp ); 
+        if( it != grammarTable.end() )
+            return *it;
     }
 
     // GrammarRule inserters. Support move semantics.
@@ -271,7 +363,6 @@ public:
     inline void sort(){
         if( sorted )
             return;
-
         std::sort( grammarTable.begin(), grammarTable.end() );
         sorted = true;
     }
