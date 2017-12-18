@@ -1,8 +1,6 @@
 #include "reglex.hpp"
 
-RegLexData::RegLexData( const gbnf::GbnfData& data ){
-    checkAndAssignLexicProperties( *this, data ); 
-}
+namespace gparse{
 
 /*! Function checks if assigned GBNF-type grammar is supported.
  *  @throws an exception if grammar contain wrong rules/tokens.
@@ -56,7 +54,7 @@ static inline void checkAndAssignLexicProperties(
         rl.regexDelimiters = rl.rules.find( regexDelimTag );
 }
 
-static void collectRegexStringFromGTokens( const GbnfData& data,
+static void collectRegexStringFromGTokens( const gbnf::GbnfData& data,
                         std::string& str, const auto& rule ){
     std::set<int> stack;
     collectRegexStringFromGTokens_priv( data, str, rule, stack );
@@ -68,8 +66,8 @@ static void collectRegexStringFromGTokens( const GbnfData& data,
  *  @param rule - starting GrammarRule,
  *  @param recLevel - level of recursion.
  */ 
-static void collectRegexStringFromGTokens_priv( const GbnfData& data,
-        std::string& str, const auto& rule, std::set<int>& idStack )
+static void collectRegexStringFromGTokens_priv( const gbnf::GbnfData& data,
+    std::string& str, const gbnf::GrammarRule& rule, std::set<int>& idStack )
 {
     // First, check if we haven't came into a recursive loop.
     // Check if we have already processed a rule with an ID of "rule.ID".
@@ -84,7 +82,7 @@ static void collectRegexStringFromGTokens_priv( const GbnfData& data,
     str += "(?:";
 
     // Loop all options of the rule and construct a regex.
-    for( auto&& opt : delimRule.options ){
+    for( auto&& opt : rule.options ){
         // Add OR if not first option
         if(!first)
             str += "|";
@@ -114,4 +112,11 @@ static void collectRegexStringFromGTokens_priv( const GbnfData& data,
     idStack.erase( (int)(rule.ID) );
 }
 
+/*! RegLexData constructor from GBNF grammar.
+ */ 
+RegLexData::RegLexData( const gbnf::GbnfData& data ){
+    checkAndAssignLexicProperties( *this, data ); 
+}
+
+}
 
