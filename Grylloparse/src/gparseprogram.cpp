@@ -28,12 +28,14 @@ int main(int argc, char** argv){
     gbnf::convertToGbnf( lexicData, sstr );
     gbnf::convertToBNF( lexicData );
 
+    gparse::RegLexData lexicon( lexicData );
+
     std::cout<<"\nlexicData:\n"<< lexicData <<"\n\n";
     std::cout<<"=========================\n\nTokenizing by Lexics...\n\n";
 
     std::istringstream pstream( testProgram );
 
-    gparse::Lexer lexer( lexicData, pstream );
+    gparse::Lexer lexer( lexicon, pstream );
 
     bool areMore = true;
     while( areMore ){

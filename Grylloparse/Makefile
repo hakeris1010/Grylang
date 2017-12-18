@@ -45,7 +45,8 @@ GRYLLOPARSE:=grylloparse
 SOURCES_GRYLLOPARSE= src/lexer.cpp
 
 HEADERS_GRYLLOPARSE= src/grylloparse.hpp \
-			   		 src/lexer.hpp
+			   		 src/lexer.hpp \
+					 src/reglex.hpp
 
 LIBS_GRYLLOPARSE:= -lgbnf -lgryltools
 

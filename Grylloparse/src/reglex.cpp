@@ -56,44 +56,62 @@ static inline void checkAndAssignLexicProperties(
         rl.regexDelimiters = rl.rules.find( regexDelimTag );
 }
 
+static void collectRegexStringFromGTokens( const GbnfData& data,
+                        std::string& str, const auto& rule ){
+    std::set<int> stack;
+    collectRegexStringFromGTokens_priv( data, str, rule, stack );
+}
+
 /*! Recursively collects the string segments into one Regex,
  *  traversing the grammar tokens.
  *  @param str - string to which to append all the collected stuff
  *  @param rule - starting GrammarRule,
  *  @param recLevel - level of recursion.
  */ 
-static inline void collectRegexStringFromGTokens( const GbnfData& data,
-                std::string& str, const auto& rule, int recLevel = 0 )
+static void collectRegexStringFromGTokens_priv( const GbnfData& data,
+        std::string& str, const auto& rule, std::set<int>& idStack )
 {
+    // First, check if we haven't came into a recursive loop.
+    // Check if we have already processed a rule with an ID of "rule.ID".
+    if( idStack.find( (int)(rule.ID) ) != idStack.end() ) 
+        return;
+    else // Insert current ID as the one being processed.
+        idStack.insert( (int)(rule.ID) );
+
     bool first = true;
 
-    // Regex group start
+    // Regex group start - use Non-Capturing Groups.
     str += "(?:";
 
+    // Loop all options of the rule and construct a regex.
     for( auto&& opt : delimRule.options ){
-        auto&& token = opt.children[0];
-
         // Add OR if not first option
         if(!first)
             str += "|";
         else
             first = false;
 
-        // Now check the types of tokens, and concatenate regex.
-        if( token.type == gbnf::GrammarToken::REGEX_STRING )
-            str += token.data;
+        // Loop all tokens of this option.
+        for( auto&& token : opt.children ){
+            // Now check the types of tokens, and concatenate regex.
+            if( token.type == gbnf::GrammarToken::REGEX_STRING )
+                str += token.data;
 
-        else if( token.type == gbnf::GrammarToken::TAG_ID ){
-            // Find rule which defines this tag, and launch a collector on that rule.
-            auto&& iter = lexics.grammarTable.find( token.id );
-            if( delimIter == lexics.grammarTable.end() )
-                throwError("[collectRegexString]: ["+ std::to_string(token.id) +
-                           "] rule is not present in table.");     
+            else if( token.type == gbnf::GrammarToken::TAG_ID ){
+                // Find rule which defines this tag, and launch a collector on that rule.
+                auto&& iter = data.grammarTable.find( token.id );
+                if( iter != data.grammarTable.end() ){
+                    collectRegexStringFromGTokens_priv( data, str, *iter, idStack );
+                }
+            }
         }
     }
 
     // Regex group end.
     str += ")";
+
+    // At the end, pop current rule's ID from the stack.
+    idStack.erase( (int)(rule.ID) );
 }
 
 
