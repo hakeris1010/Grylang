@@ -195,24 +195,12 @@ public:
 
     int flags = 0;
 
-    //std::set< NonTerminal > tagTable; 
-    //std::set< GrammarRule > grammarTable;  
-    //std::map< int, NonTerminal > tagTable; 
-    //std::map< int, GrammarRule > grammarTable;   
-
     GbnfData(){}
     GbnfData( int flag, std::initializer_list< NonTerminal >&& tagTbl, 
                         std::initializer_list< GrammarRule >&& grammarTbl )
         : tagTable( std::move(tagTbl) ), grammarTable( std::move(grammarTbl) ), flags( flag )
-    {
-        /*for( auto&& a : tagTbl ){
-            tagTable.insert( std::pair<int, NonTerminal> (a.ID, std::move(a)) );   
-        }           
-        for( auto&& a : grammarTbl ){
-            grammarTbl.insert( std::pair<int, GrammarRule> (a.ID, std::move(a)) );   
-        } */
-    }
-
+    { }
+     
     // Last tag getters.
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const;
     inline int getLastTagID() const { return lastTagID; }
