@@ -45,7 +45,7 @@ private:
     void getTagName( std::string& str, bool startsWithLetter = true );
     int  parseGrammarToken( GrammarToken& tok, int recLevel = 1, char endChar = '}' );
     bool parseGrammarOption( GrammarToken& tok );
-    void parseGrammarRule( GrammarRule& rule );
+    void parseGrammarRule();
  
 public:
     ParseInput( std::istream& is, GbnfData& dat, int debMode = 0 ) 
@@ -81,11 +81,11 @@ size_t GbnfData::getTagIDfromTable( const std::string& name, bool insertIfNotPre
     // Search by iteration, because we can't search for string sorted.
     for(const auto& t : tagTable){
         if(t.data.compare( name ) == 0)
-            return t.ID;
+            return t.getID();
     }
     // If reached this point, element not found. Insert new NonTerminal Tag if flag specified.
     if(insertIfNotPresent)
-        return insertNewTag( name );
+        return insertTag( name );
 
     return -1;
 }
@@ -303,9 +303,9 @@ bool ParseInput::parseGrammarOption( GrammarToken& tok ){
 
 /*! Parse the grammar rule definition. 
  *  Must start reading at the position of Tag Start ('<').
- *  @param rule - the rule structure to parse data into.
+ *  - Function parses the rule, and puts it directly into GbnfData structure.
  */ 
-void ParseInput::parseGrammarRule( GrammarRule& rule ){
+void ParseInput::parseGrammarRule(){
     const bool dbg = true;
 
     std::string tmp;
@@ -316,9 +316,12 @@ void ParseInput::parseGrammarRule( GrammarRule& rule ){
     
     // Get the first tag (the NonTerminal this rule defines), and it's ID.
     getTagName( tmp );
-    rule.ID = data.getTagIDfromTable( tmp, true ); // Add to table if not present.
+    size_t rID = data.getTagIDfromTable( tmp, true ); // Add to table if not present.
+    
+    // Create a new grammar rule, which we'll fill in next steps.
+    GrammarRule rule( rID );
 
-    logf(dbg, 1, " TagName: %s, ID: %d \n", tmp.c_str(), (int)rule.ID);
+    logf(dbg, 1, " TagName: %s, ID: %d \n", tmp.c_str(), rule.getID());
     logf(dbg, 2, "Getting assignment OP...\n");
 
     // Get the definition-assignment operator (::==, ::=, :==, :=).
@@ -354,6 +357,9 @@ void ParseInput::parseGrammarRule( GrammarRule& rule ){
     // We've parsed a rule. All options are parsed.
     logf(dbg, 1, " Option count: %d\n\n", rule.options.size());
     logf(dbg, 2, "============================\n\n");
+
+    // Put the rule into the grammar table using move semantics.
+    data.insertRule( std::move( rule ) ); // Best part: std::move :D
 }
 
 // Convert EBNF to GBNF.
@@ -380,14 +386,15 @@ void ParseInput::convert(){
             
             logf(dbg, 2, "Grammar Rule started. Getting it...\n");
 
-            GrammarRule tempRule;
-            parseGrammarRule( tempRule );
-
-            data.grammarTable.insert( std::move( tempRule ) ); // Best part: std::move :D
+            // Parse the next grammar rule, and put it direcly into GBNF Data structure.
+            parseGrammarRule();
         }
         else // If other non-whitespace character occured between rules and comments, error.  
             throwError(" : Wrong start symbol!" );
     }
+
+    // At the end, sort the GBNF rules by their IDs.
+    data.sort();
 }
 
 /*! GBNF Structure Printers. 
@@ -397,7 +404,7 @@ void GbnfData::print( std::ostream& os, int mode, const std::string& ld ) const 
     os << ld <<"GBNFData in 0x"<<this<<"\n"<<ld<<" Flags:"<<flags<<"\n"
        << ld <<" TagTable ("<< tagTable.size() <<" entries):\n";
     for(auto a : tagTable)
-        os<<ld<<" [ "<<a.ID<<" ]: "<<a.data<<"\n";
+        os<<ld<<" [ "<<a.getID()<<" ]: "<<a.data<<"\n";
 
     os<<"\n"<<ld<<"GrammarTable: ("<<grammarTable.size()<<" entries):\n";
     for(auto a : grammarTable)

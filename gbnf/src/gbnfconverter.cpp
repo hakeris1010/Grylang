@@ -31,13 +31,12 @@ short ConverterToBNF::createNewRuleAndGetTag( GrammarToken&& token, int recLevel
     // Backup current token's type
     auto tokType = token.type; 
 
-    short nruleID = data.insertNewTag( "__tmp_bnfmode_"+
+    short nruleID = data.insertTag( "__tmp_bnfmode_"+
                         std::to_string( data.getLastTagID() + 1 ) );
 
     // Create a new rule to be added to newRules.
     // Assign the being-fixed token's children as new rule's Option no.1 .
-    GrammarRule nrule;
-    nrule.ID = nruleID;
+    GrammarRule nrule( nruleID );
     nrule.options.push_back( 
         GrammarToken( GrammarToken::ROOT_TOKEN, 0, "", 
             std::move( token.children ) 
@@ -55,7 +54,7 @@ short ConverterToBNF::createNewRuleAndGetTag( GrammarToken&& token, int recLevel
     {
         // Check if only one option is left in the rule. If not, make another rule.
         if( nrule.options.size() > 1 ){
-            short newTagID = data.insertNewTag( "__tmp_bnfmode_"+
+            short newTagID = data.insertTag( "__tmp_bnfmode_"+
                     std::to_string( data.getLastTagID() + 1 ) );
 
             // Make a new rule containing all option of the current rule.
@@ -81,14 +80,14 @@ short ConverterToBNF::createNewRuleAndGetTag( GrammarToken&& token, int recLevel
         // depending on parser type, to initiate recursive repetition. 
         if( preferRightRecursion ){ // If right recursion, add in the end.
             reptok.children.insert( reptok.children.end(), 
-                GrammarToken( GrammarToken::TAG_ID, nrule.ID, std::string(), {} )
+                GrammarToken( GrammarToken::TAG_ID, nrule.getID(), std::string(), {} )
             );
 
             //nrule.options.insert( nrule.options.end(), std::move( reptok ) );
         }
         else{ // If left recursion, add in the beginning.
             reptok.children.insert( reptok.children.begin(),
-                GrammarToken( GrammarToken::TAG_ID, nrule.ID, std::string(), {} )
+                GrammarToken( GrammarToken::TAG_ID, nrule.getID(), std::string(), {} )
             );
 
             //nrule.options.insert( nrule.options.begin(), std::move( reptok ) );
@@ -102,7 +101,7 @@ short ConverterToBNF::createNewRuleAndGetTag( GrammarToken&& token, int recLevel
     this->newRules.push_back( std::move( nrule ) );
 
     // Return ID of this rule.
-    return nrule.ID;
+    return nrule.getID();
 }
 
 /*! Converts all Non-BNF tokens in a Rule to BNF tokens, creating new Rules if needed.
@@ -189,7 +188,7 @@ void ConverterToBNF::fixNonBNFTokensInRule( const GrammarRule& rule, int recLeve
 
 void ConverterToBNF::convert(){
     // Search for rules which contain eBNF tokens.
-    for( auto&& rule : data.grammarTable ){
+    for( auto&& rule : data.grammarTableConst() ){
         // For each rule, pass it to this function, which modifies the rule, 
         // fixing Non-BNF tokens.
         fixNonBNFTokensInRule( rule );
@@ -197,8 +196,11 @@ void ConverterToBNF::convert(){
 
     // At the end, append newly constructed rules to grammar table.
     for( auto&& rl : newRules ){
-        data.grammarTable.insert( std::move( rl ) );
+        data.insertRule( std::move( rl ) );
     }
+
+    // Sort rules by ID.
+    data.sort();
 }
 
 //============= PUBLIC SECTION =============//

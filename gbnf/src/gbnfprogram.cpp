@@ -4,7 +4,7 @@
 #include <memory>
 #include <functional>
 #include <cstring>
-#include <map>
+#include <set>
 #include "gbnf.hpp"
 
 const char* testData = 
@@ -43,7 +43,7 @@ const char* testData2 =
 "<noot> ::= \"woop[]\" {<baka> <desu> \"abcd\" { \"regex\" \"+\" }* }+ <noot> ;\n"
 ;
 
-const char* finalData = testData2;
+const char* finalData = testData;
 
 static bool debug = false;
 
@@ -63,15 +63,14 @@ struct BnfInputFile{
         : is( new std::ifstream( fname, mode ) ), filename( fname ), type( _type )
     {}
 
-    static bool compare( const BnfInputFile& a, const BnfInputFile& b ){
-        return a.filename < b.filename;
+    bool operator< ( const BnfInputFile& other ) const {
+        return filename < other.filename;
     }
 };
 
 int main(int argc, char** argv){
     // Properties
-    std::set< BnfInputFile, bool(*)(const BnfInputFile&, const BnfInputFile&) > 
-        inFiles ( BnfInputFile::compare );
+    std::set< BnfInputFile > inFiles;
 
     std::ofstream outFile;
     std::string outFileName;
@@ -178,7 +177,7 @@ int main(int argc, char** argv){
         gbnf::convertToGbnf( data, *(a.is), verbosity-1 );
 
         if( verbosity > 0)
-            std::cout<<" Parsed to GBNF. No. of Rules: "<< data.grammarTable.size() <<"\n";
+            std::cout<<" Parsed to GBNF. No. of Rules: "<< data.grammarTableConst().size() <<"\n";
 
         // Convert to BNF
         if( convertToBnf ){
@@ -187,7 +186,7 @@ int main(int argc, char** argv){
 
             if( verbosity > 0){
                 std::cout<<" Converted to BNF. No. of Rules: "<< 
-                    data.grammarTable.size() <<"\n";
+                    data.grammarTableConst().size() <<"\n";
             }
         }
 

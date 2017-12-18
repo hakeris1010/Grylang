@@ -111,9 +111,9 @@ void GbnfCodeGenerator::generate( const GbnfData& data, const std::string& vn ){
 
 void GbnfCodeGenerator::outputTagTable( const GbnfData& data ){
     gtools::PrintTools::outputInitializerList( this->output, 
-        data.tagTable.begin(), data.tagTable.end(), 
+        data.tagTableConst().begin(), data.tagTableConst().end(), 
         []( std::ostream& outp, const NonTerminal& a, const auto& ps ){
-            outp << "NonTerminal( "<< a.ID <<" , ";
+            outp << "NonTerminal( "<< a.getID() <<" , ";
             if( !a.data.empty() ){
                 std::string res = a.data;
                 gtools::StringTools::escapeSpecials( res, true );
@@ -128,9 +128,9 @@ void GbnfCodeGenerator::outputTagTable( const GbnfData& data ){
 
 void GbnfCodeGenerator::outputGrammarTable( const GbnfData& data ){
     using namespace gtools::PrintTools;
-    outputInitializerList( this->output, data.grammarTable.begin(), data.grammarTable.end(), 
+    outputInitializerList( this->output, data.grammarTableConst().begin(), data.grammarTableConst().end(), 
         []( std::ostream& outp, const GrammarRule& a, const ListOutputParams& ps ){
-            outp << "GrammarRule( "<< a.ID <<" , ";
+            outp << "GrammarRule( "<< a.getID() <<" , ";
 
             ListOutputParams ps2 = ps;
             ps2.tabLeaderSize += 4;

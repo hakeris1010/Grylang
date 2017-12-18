@@ -67,7 +67,7 @@
 #define GBNF_H_INCLUDED
 
 #include <string>
-//#include <set>
+#include <algorithm>
 #include <map>
 #include <functional>
 #include <vector>
@@ -83,13 +83,16 @@ namespace gbnf{
  *  - Non-Terminals are defined in the Grammar Rule table.
  */ 
 struct NonTerminal{
-    const size_t ID;
-
+private:
+    size_t ID;
+public:
     // Mark as "mutable" to allow modification of this field while iterating 
     // in std::set using a reference to this object.
-    mutable std::string data;
+    std::string data;
 
     NonTerminal( int _ID, const std::string& _data ) : ID( _ID ), data( _data ) {}
+
+    inline size_t getID() const { return ID; }
 
     // Comparation function.
     bool operator< (const NonTerminal& other) const { 
@@ -142,10 +145,13 @@ inline std::ostream& operator<< (std::ostream& os, const GrammarToken& tok){
  *  Options for rule are stored as a vector of Token Trees (GrammarToken type is ROOT_TOKEN).
  */ 
 struct GrammarRule{
-    const size_t ID;
+private:
+    size_t ID;
+
+public:
     mutable std::vector<GrammarToken> options; 
 
-    GrammarRule(){}
+    GrammarRule(int _ID) : ID( _ID ) {}
     GrammarRule(int _ID, const std::initializer_list< GrammarToken >& _options)
         : ID( _ID ), options( _options )
     {}
@@ -154,6 +160,7 @@ struct GrammarRule{
     {} 
 
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const ;
+    inline size_t getID() const { return ID; }
 
     // Comparation function.
     bool operator< ( const GrammarRule& other ) const {
@@ -177,8 +184,6 @@ private:
     int lastRuleID = 0;
     bool sorted = false;
 
-    int flags = 0;
-
     std::vector< NonTerminal > tagTable; 
     std::vector< GrammarRule > grammarTable;     
 
@@ -188,6 +193,8 @@ public:
     const static int LEFT_RECURSIVE  = 4;
     const static int RIGHT_RECURSIVE = 8;
 
+    int flags = 0;
+
     //std::set< NonTerminal > tagTable; 
     //std::set< GrammarRule > grammarTable;  
     //std::map< int, NonTerminal > tagTable; 
@@ -196,7 +203,7 @@ public:
     GbnfData(){}
     GbnfData( int flag, std::initializer_list< NonTerminal >&& tagTbl, 
                         std::initializer_list< GrammarRule >&& grammarTbl )
-        : flags( flag ), tagTable( std::move(tagTbl) ), grammarTable( std::move(grammarTbl) )
+        : tagTable( std::move(tagTbl) ), grammarTable( std::move(grammarTbl) ), flags( flag )
     {
         /*for( auto&& a : tagTbl ){
             tagTable.insert( std::pair<int, NonTerminal> (a.ID, std::move(a)) );   
@@ -210,14 +217,19 @@ public:
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const;
     inline int getLastTagID() const { return lastTagID; }
     inline int getLastRuleID() const { return lastRuleID; }
-    inline bool isSorted() const { return sorted }
+    inline bool isSorted() const { return sorted; }
+
+    // Get const references to tables.
+    const auto& tagTableConst() const { return tagTable; }
+    const auto& grammarTableConst() const { return grammarTable; }
+    
 
     // Get rules and tags by index ( ID ).    
-    inline NonTerminal& getTag( size_t i ) const {
+    inline NonTerminal& getTag( size_t i ) {
         return tagTable[ i ];
     }
 
-    inline GrammarRule& getRule( size_t i ) const {
+    inline GrammarRule& getRule( size_t i ) {
         return grammarTable[ i ];
     }
 
@@ -257,13 +269,13 @@ public:
      *  - After removal the sorting order doesn't change.
      */
     inline void removeTag( size_t id ){
-        tagTable.erase( tagTable.begin() + id, 1 );
+        tagTable.erase( tagTable.begin() + id );
     }
     inline void removeRule( size_t id ){
         if( !sorted )
             sort();
 
-        grammarTable.erase( grammarTable.begin() + id, 1 );
+        grammarTable.erase( grammarTable.begin() + id );
     }
 
     /*! Sorter. Sorts the Grammar Rule Table by ID.
