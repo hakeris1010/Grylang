@@ -14,12 +14,18 @@ namespace gparse{
  */ 
 
 struct RegLexRule{
-    int id;
+private:
+    size_t id;
+public:
     std::regex regex;
 
     RegLexRule();
-    RegLexRule(int _id, const std::regex& _reg) : id( _id ), regex( _reg ) {}
-    RegLexRule(int _id, std::regex&& _reg) : id( _id ), regex( std::move(_reg) ) {}
+    RegLexRule(size_t _id, const std::regex& _reg = std::regex()) 
+        : id( _id ), regex( _reg ) {}
+    RegLexRule(size_t _id, std::regex&& _reg) 
+        : id( _id ), regex( std::move(_reg) ) {}
+
+    size_t getID() const { return id; }
 
     bool operator< (const RegLexRule& other) const {
         return id < other.id;
