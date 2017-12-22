@@ -285,7 +285,8 @@ public:
     const auto& tagTableConst() const { return tagTable; }
     const auto& grammarTableConst() const { return grammarTable; }
 
-    // Get rules and tags by index ( ID ).    
+    // Get rules by index ( ID ).    
+    // Const and Non-Const Versions.
     inline NonTerminal& getTag( size_t i ) {
         if( i < tagTable.size() && (tagTable[i].getID() == i) )
             return tagTable[ i ];
@@ -295,8 +296,28 @@ public:
         if( it != tagTable.end() )
             return *it;
     }
+    inline const NonTerminal& getTag( size_t i ) const {
+        if( i < tagTable.size() && (tagTable[i].getID() == i) )
+            return tagTable[ i ];
 
+        auto&& it = std::lower_bound( tagTable.begin(), tagTable.end(), 
+                                      NonTerminal( i ) ); 
+        if( it != tagTable.end() )
+            return *it;
+    }
+
+    // Get tags by index ( ID ).    
+    // Const and Non-Const Versions.
     inline GrammarRule& getRule( size_t i ) {
+        if( i < grammarTable.size() && ( grammarTable[i].getID() == i ) )
+            return grammarTable[i];
+
+        auto&& it = std::lower_bound( grammarTable.begin(), grammarTable.end(), 
+                                      GrammarRule( i ) ); 
+        if( it != grammarTable.end() )
+            return *it;
+    }
+    inline const GrammarRule& getRule( size_t i ) const {
         if( i < grammarTable.size() && ( grammarTable[i].getID() == i ) )
             return grammarTable[i];
 
