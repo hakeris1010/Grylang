@@ -90,7 +90,10 @@ public:
     // in std::set using a reference to this object.
     std::string data;
 
-    NonTerminal( int _ID, const std::string& _data ) : ID( _ID ), data( _data ) {}
+    NonTerminal( int _ID, const std::string& _data = std::string() ) 
+        : ID( _ID ), data( _data ) {}
+    NonTerminal( int _ID, std::string&& _data ) 
+        : ID( _ID ), data( std::move(_data) ) {} 
 
     inline size_t getID() const { return ID; }
 
@@ -104,7 +107,8 @@ public:
  *  - Tokens are in a format defined above.
  *  - Every Grammar Rule option is a Token with a type of ROOT_TOKEN.
  *  - Token structure uses the tree format - with the root token being the option itself.
- *  - Child tokens must be sequentially matched with every incoming token-to-match to match the rule.
+ *  - Child tokens must be sequentially matched with every incoming 
+ *    token-to-match to match the rule.
  */ 
 struct GrammarToken{
     const static char GROUP_ONE         = '1';
@@ -173,11 +177,7 @@ inline std::ostream& operator<< (std::ostream& os, const GrammarRule& rule){
     return os;
 }
 
-/*! Whole-File structure.  
- *  This is the structure which holds the whole grammar which is being worked with.
- *
- *  New model - use Sorted Vectors.
- */ 
+/*
 class GbnfData_Map{
 private:
     int lastTagID = 0;
@@ -221,10 +221,7 @@ public:
         grammarTable.insert( std::pair<size_t, GrammarRule>( rule.getID(), rule ) );
     }
  
-    /* New Tag inserters.
-     * - ID is assigned automatically, so the vector is always sorted. 
-     * @return the ID of newly inserted tag.
-     */
+    // New Tag inserters.
     inline size_t insertTag( const std::string& name ){
         lastTagID++;
         tagTable.insert( std::pair<size_t, NonTerminal>(
@@ -240,9 +237,7 @@ public:
 
     size_t getTagIDfromTable( const std::string& name, bool insertIfNotPresent );
 
-    /*! Removers. 
-     *  - After removal the sorting order doesn't change.
-     */
+    // Removers. 
     inline void removeTag( size_t id ){
         tagTable.erase( id );
     }
@@ -250,6 +245,7 @@ public:
         grammarTable.erase( id );
     }
 };
+*/
 
 /*! Whole-File structure.  
  *  This is the structure which holds the whole grammar which is being worked with.
@@ -264,8 +260,6 @@ private:
 
     std::vector< NonTerminal > tagTable; 
     std::vector< GrammarRule > grammarTable;     
-    //std::map<size_t, NonTerminal> tagTable;
-    //std::map<size_t, GrammarRule> grammarTable;
 
 public:
     const static int FORMAT_EBNF     = 1;
@@ -290,25 +284,24 @@ public:
     // Get const references to tables.
     const auto& tagTableConst() const { return tagTable; }
     const auto& grammarTableConst() const { return grammarTable; }
-    
 
     // Get rules and tags by index ( ID ).    
     inline NonTerminal& getTag( size_t i ) {
-        //if( i <= lastTagID )
-        //    return tagTable[ i ];
-        auto&& tmp = NonTerminal( i, std::string() );
-        auto&& it = std::lower_bound( tagTable.begin(), tagTable.end(), tmp ); 
+        if( i < tagTable.size() && (tagTable[i].getID() == i) )
+            return tagTable[ i ];
+
+        auto&& it = std::lower_bound( tagTable.begin(), tagTable.end(), 
+                                      NonTerminal( i ) ); 
         if( it != tagTable.end() )
             return *it;
     }
 
     inline GrammarRule& getRule( size_t i ) {
-        /*if( i < grammarTable.size() ){
-            if( grammarTable[i].getID() == i )
-                return grammarTable[i];
-        }*/
-        auto&& tmp = GrammarRule( i );
-        auto&& it = std::lower_bound( grammarTable.begin(), grammarTable.end(), tmp ); 
+        if( i < grammarTable.size() && ( grammarTable[i].getID() == i ) )
+            return grammarTable[i];
+
+        auto&& it = std::lower_bound( grammarTable.begin(), grammarTable.end(), 
+                                      GrammarRule( i ) ); 
         if( it != grammarTable.end() )
             return *it;
     }
@@ -348,14 +341,26 @@ public:
     /*! Removers. 
      *  - After removal the sorting order doesn't change.
      */
-    inline void removeTag( size_t id ){
-        tagTable.erase( tagTable.begin() + id );
+    inline void removeTag( size_t i ){
+        if( i < tagTable.size() && (tagTable[i].getID() == i) )
+            tagTable.erase( tagTable.begin() + i );
+        else{
+            auto&& it = std::lower_bound( tagTable.begin(), tagTable.end(), 
+                                          NonTerminal( i ) ); 
+            if( it != tagTable.end() )
+                tagTable.erase( it );
+        }
     }
-    inline void removeRule( size_t id ){
-        if( !sorted )
-            sort();
 
-        grammarTable.erase( grammarTable.begin() + id );
+    inline void removeRule( size_t i ){
+        if( i < grammarTable.size() && ( grammarTable[i].getID() == i ) )
+            grammarTable.erase( grammarTable.begin() + i );
+        else{
+            auto&& it = std::lower_bound( grammarTable.begin(), grammarTable.end(), 
+                                          GrammarRule( i ) ); 
+            if( it != grammarTable.end() )
+                grammarTable.erase( it );
+        }
     }
 
     /*! Sorter. Sorts the Grammar Rule Table by ID.
