@@ -287,44 +287,40 @@ public:
 
     // Get rules by index ( ID ).    
     // Const and Non-Const Versions.
-    inline NonTerminal& getTag( size_t i ) {
+    // @return iterator.
+    inline auto getTag( size_t i ) {
         if( i < tagTable.size() && (tagTable[i].getID() == i) )
-            return tagTable[ i ];
+            return tagTable.begin() + i;
 
-        auto&& it = std::lower_bound( tagTable.begin(), tagTable.end(), 
-                                      NonTerminal( i ) ); 
-        if( it != tagTable.end() )
-            return *it;
+        return std::lower_bound( tagTable.begin(), tagTable.end(), 
+                                 NonTerminal( i ) ); 
+        //if( it != tagTable.end() )
+        //    return *it;
     }
-    inline const NonTerminal& getTag( size_t i ) const {
+    inline auto getTag( size_t i ) const {
         if( i < tagTable.size() && (tagTable[i].getID() == i) )
-            return tagTable[ i ];
+            return tagTable.begin() + i;
 
-        auto&& it = std::lower_bound( tagTable.begin(), tagTable.end(), 
-                                      NonTerminal( i ) ); 
-        if( it != tagTable.end() )
-            return *it;
+        return std::lower_bound( tagTable.begin(), tagTable.end(), 
+                                 NonTerminal( i ) ); 
     }
 
     // Get tags by index ( ID ).    
     // Const and Non-Const Versions.
-    inline GrammarRule& getRule( size_t i ) {
+    // @return iterator.
+    inline auto getRule( size_t i ) {
         if( i < grammarTable.size() && ( grammarTable[i].getID() == i ) )
-            return grammarTable[i];
+            return grammarTable.begin() + i;
 
-        auto&& it = std::lower_bound( grammarTable.begin(), grammarTable.end(), 
-                                      GrammarRule( i ) ); 
-        if( it != grammarTable.end() )
-            return *it;
+        return std::lower_bound( grammarTable.begin(), grammarTable.end(), 
+                                 GrammarRule( i ) ); 
     }
-    inline const GrammarRule& getRule( size_t i ) const {
+    inline auto getRule( size_t i ) const {
         if( i < grammarTable.size() && ( grammarTable[i].getID() == i ) )
-            return grammarTable[i];
+            return grammarTable.begin() + i;
 
-        auto&& it = std::lower_bound( grammarTable.begin(), grammarTable.end(), 
-                                      GrammarRule( i ) ); 
-        if( it != grammarTable.end() )
-            return *it;
+        return std::lower_bound( grammarTable.begin(), grammarTable.end(), 
+                                 GrammarRule( i ) ); 
     }
 
     // GrammarRule inserters. Support move semantics.
