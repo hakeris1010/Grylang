@@ -3,6 +3,7 @@
 
 namespace gparse{
 
+
 /*! Recursively collects the string segments into one Regex,
  *  traversing the grammar tokens.
  *  @param str - string to which to append all the collected stuff

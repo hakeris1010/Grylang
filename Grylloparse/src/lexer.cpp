@@ -20,6 +20,10 @@ namespace gparse{
  *        3. Use a unified Lexer-Parser (related to #2).
  */
 
+/*! Stream state structure.
+ *  Contains information about 
+ */
+
 /*! Main lexer implementation.
  *  - Takes RegLexData as a lexicon grammar, passed as ctor parameter.
  *  - Assumes that the passed RegLexData is fully valid. No checks are being done.
@@ -47,8 +51,13 @@ private:
     // State variables
     volatile bool running = false; 
     volatile bool endOfStream = false;
+
+    // Stream state specifics.
     size_t lineCount = 0;
     size_t posInLine = 0;
+
+    // Token's store buffer.
+    std::string tokenBuff;
 
     // Backend functions.
     int getNextTokenPriv( LexicToken& tok );
@@ -59,12 +68,12 @@ public:
     LexerImpl( const RegLexData& lexicData, std::istream& stream, bool useBQ = false )
         : useBlockingQueue( useBQ ), lexics( lexicData ), rdr( stream ), 
           bQueue( useBQ ? new gtools::BlockingQueue< LexicToken >() : nullptr )
-    {}
+    { tokenBuff.reserve(256); }
 
     LexerImpl( RegLexData&& lexicData, std::istream& stream, bool useBQ = false )
         : useBlockingQueue( useBQ ), lexics( std::move(lexicData) ), rdr( stream ), 
           bQueue( useBQ ? new gtools::BlockingQueue< LexicToken >() : nullptr )
-    {}
+    { tokenBuff.reserve(256); }
 
     void start();
     bool getNextToken( LexicToken& tok );
@@ -86,6 +95,13 @@ int LexerImpl::getNextTokenPriv( LexicToken& tok ){
 
     endOfStream = true;
     return 1;
+
+    // Delimiter is just a char array (not a regex) - read a chunk until delimiter.
+    if( !lexics.useRegexDelimiters ){
+        
+    }
+
+
 }
 
 /*! Runner function which fills the blocking queue with tokens.
@@ -109,9 +125,9 @@ void LexerImpl::start(){
         if(tt == 0)
             bQueue->push( std::move( tok ) );
 
-        // TODO: check for non-fatal errors, and just ignore non-fatal tokens.
         // Break loop if error or loop end.
-        break;
+        if( tt < 0 || endOfStream )
+            break;
     }
 
     running = false;    
@@ -124,20 +140,19 @@ void LexerImpl::start(){
  *  @return true if more tokens can be expected - not end.
  */ 
 bool LexerImpl::getNextToken( LexicToken& tok ){
-    if( endOfStream )
-        return false;
-
     // If using multithreading, wait until token gets put into the queue.
+    // If stream has ended, but queue has tokens, extract them.
     if( useBlockingQueue ){
-        tok = bQueue->pop();
-        return true;
+        if(!endOfStream || !bQueue->isEmpty())
+            tok = bQueue->pop();
+        return !endOfStream || !bQueue->isEmpty();
     }
     
     // If no multithreading, just directly call the private token getter.
     int ret = getNextTokenPriv( tok );
 
     // return true (have more tokens) if normal token or non-fatal error.
-    return ret >= 0;
+    return ret >= 0 && !endOfStream;
 }
 
 /*=============================================================

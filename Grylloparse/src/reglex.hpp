@@ -26,7 +26,7 @@ public:
                const std::string& stringRepr = std::string() ) 
         : id( _id ), regex( _reg ), regexStringRepr( stringRepr ) 
     {}
-    RegLexRule(size_t _id, std::regex&& _reg, std::string&& stringRepr) 
+    RegLexRule(size_t _id, std::regex&& _reg, std::string&& stringRepr = std::string()) 
         : id( _id ), regex( std::move(_reg) ), regexStringRepr( std::move(stringRepr) ) 
     {}
 
@@ -84,18 +84,24 @@ struct RegLexData{
     RegLexData( std::initializer_list< RegLexRule >&& _rules, 
                 bool useRegDels = true,
                 const std::string& nonRegDels = std::string(),
-                const std::regex& regDels = std::regex() )
+                const std::regex& regDels = std::regex(),
+                const std::string& ignors = std::string() )
         : rules( std::move(_rules) ), nonRegexDelimiters( nonRegDels ),
-          regexDelimiters( 0, regDels ), useRegexDelimiters( useRegDels ),
+          regexDelimiters( 0, regDels ), ignorables( ignors ),
+          useRegexDelimiters( useRegDels ),
+          useCustomWhitespaces( ignors.empty() ),
           tokenized( useRegDels || !nonRegDels.empty() )
     {}
 
     RegLexData( std::initializer_list< RegLexRule >&& _rules, 
                 bool useRegDels = true,
                 std::string&& nonRegDels = std::string(),
-                std::regex&& regDels = std::regex() )
+                std::regex&& regDels = std::regex(),
+                std::string&& ignors = std::string() )
         : rules( std::move(_rules) ), nonRegexDelimiters( std::move(nonRegDels) ),
-          regexDelimiters( 0, std::move(regDels) ), useRegexDelimiters( useRegDels ),
+          regexDelimiters( 0, std::move(regDels) ), ignorables( std::move(ignors) ),
+          useRegexDelimiters( useRegDels ),
+          useCustomWhitespaces( ignors.empty() ),
           tokenized( useRegDels || !nonRegDels.empty() )
     {} 
 

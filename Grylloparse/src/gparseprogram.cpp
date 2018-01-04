@@ -44,9 +44,7 @@ int main(int argc, char** argv){
     while( areMore ){
         gparse::LexicToken tok;
         areMore = lexer.getNextToken( tok );
-
-        if(areMore)
-            std::cout<< tok <<"\n";
+        std::cout<< tok <<"\n";
     }
 
     return 0;
