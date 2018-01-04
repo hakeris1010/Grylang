@@ -27,10 +27,12 @@ int main(int argc, char** argv){
 
     gbnf::convertToGbnf( lexicData, sstr );
     gbnf::convertToBNF( lexicData );
+     
+    std::cout<<"\nlexicData:\n"<< lexicData <<"\n\n";
 
     gparse::RegLexData lexicon( lexicData );
 
-    std::cout<<"\nlexicData:\n"<< lexicData <<"\n\n";
+    std::cout<<"\nRegLexData:\n"<< lexicon <<"\n\n";
     std::cout<<"=========================\n\nTokenizing by Lexics...\n\n";
 
     std::istringstream pstream( testProgram );

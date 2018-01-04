@@ -2,8 +2,6 @@
 
 namespace gparse{
 
-
-
 /*! Recursively collects the string segments into one Regex,
  *  traversing the grammar tokens.
  *  @param str - string to which to append all the collected stuff
@@ -11,7 +9,8 @@ namespace gparse{
  *  @param recLevel - level of recursion.
  */ 
 static void collectRegexStringFromGTokens_priv( const gbnf::GbnfData& data,
-    std::string& str, const gbnf::GrammarRule& rule, std::set<int>& idStack )
+    std::string& str, const gbnf::GrammarRule& rule, std::set<int>& idStack,
+    bool parentMultiOption = false )
 {
     // First, check if we haven't came into a recursive loop.
     // Check if we have already processed a rule with an ID of "rule.getID()".
@@ -20,12 +19,21 @@ static void collectRegexStringFromGTokens_priv( const gbnf::GbnfData& data,
     else // Insert current ID as the one being processed.
         idStack.insert( (int)(rule.getID()) );
 
-    bool first = true;
+    // Check if there is only one option, with only one token, of type REGEX.
+    // Don't use groups if so. Only Non-Recursive one-level tokens can be made so.
+    if( rule.options.size() == 1 && rule.options.children.size() == 1 &&
+        rule.options.children[0].type == gbnf::GrammarToken::REGEX_STRING && 
+        idStack.empty() && !parentMultiOption )
+    {
+        str += rule.options.children[0].data; 
+        return;
+    }
 
     // Regex group start - use Non-Capturing Groups.
     str += "(?:";
 
     // Loop all options of the rule and construct a regex.
+    bool first = true;
     for( auto&& opt : rule.options ){
         // Add OR if not first option
         if(!first)
@@ -43,7 +51,8 @@ static void collectRegexStringFromGTokens_priv( const gbnf::GbnfData& data,
                 // Find rule which defines this tag, and launch a collector on that rule.
                 auto&& iter = data.getRule( token.id );
                 if( iter != data.grammarTableConst().end() ){
-                    collectRegexStringFromGTokens_priv( data, str, *iter, idStack );
+                    collectRegexStringFromGTokens_priv( data, str, *iter, idStack,
+                           rule.options.size() > 1 );
                 }
             }
         }
