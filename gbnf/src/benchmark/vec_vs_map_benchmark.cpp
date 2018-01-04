@@ -70,7 +70,7 @@ void testVector(){
     std::this_thread::sleep_for( std::chrono::milliseconds(5000) );
 }
 
-void testMap(){
+/*void testMap(){
     // Benchmark Map-type container.
     std::cout<<"\n\n-------- Map --------\n\nAllocating memory...\n" << std::flush;
 
@@ -100,14 +100,14 @@ void testMap(){
     } );
 
     std::this_thread::sleep_for( std::chrono::milliseconds(1000) );
-}
+}*/
 
 int main(){
     srand( time(0) );
     std::cout<<"Benchmarking GBNF lookup performance. Arr lenght: "<< arrSize <<"\n";
     
     testVector();
-    testMap();
+    //testMap();
 
     return 0;
 }
