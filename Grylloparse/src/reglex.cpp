@@ -86,15 +86,12 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
     for( auto&& nt : gdata.tagTableConst() ){
         if( nt.data == "regex_delim" ){
             regexDelimTag = nt.getID();
-            break;
         }
         if( nt.data == "delim" ){
             sDelimTag = nt.getID();
-            break;
         } 
         if( nt.data == "ignore" ){
             ignoreTag = nt.getID();
-            break;
         } 
     }
     
@@ -117,7 +114,7 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
             sDelimRule->options.size() == 1 )
         {
             rl.nonRegexDelimiters = sDelimRule->options[0].children[0].data;
-            //std::cout<<"Non-Regex Delim Rule: \""<< rl.nonRegexDelimiters <<"\"\n"; 
+            std::cout<<"Non-Regex Delim Rule: \""<< rl.nonRegexDelimiters <<"\"\n"; 
         }
         else
             throw std::runtime_error("[RegLexData(GbnfData)]: <delim> rule is not present."); 
@@ -132,7 +129,7 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
             ignoreRule->options.size() == 1 )
         {
             rl.ignorables = ignoreRule->options[0].children[0].data;
-            //std::cout<<"Ignoreable Rule: \""<< rl.nonRegexDelimiters <<"\"\n"; 
+            std::cout<<"Ignoreable Rule: \""<< rl.nonRegexDelimiters <<"\"\n"; 
         }
         else
             throw std::runtime_error("[RegLexData(GbnfData)]: <ignore> rule is not present."); 
@@ -158,9 +155,17 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
             rl.regexDelimiters = *regDelIter;
         else
             throw std::runtime_error("[RegLexData(GbnfData)]: <delim-regex> rule is not present."); 
-        // Erase the delimiter rule from there, because we no longer need it.
-        rl.rules.erase( RegLexRule(regexDelimTag) );
     }
+
+    // Removes rules which define special data (delimiters, ignorables).
+    if(regexDelimTag != (size_t)(-1))
+        rl.rules.erase( RegLexRule(regexDelimTag) );
+
+    if(sDelimTag != (size_t)(-1))
+        rl.rules.erase( RegLexRule(sDelimTag) );
+
+    if(ignoreTag != (size_t)(-1))
+        rl.rules.erase( RegLexRule(ignoreTag) );
 }
 
 /*! RegLexData constructor from GBNF grammar.
@@ -170,10 +175,18 @@ RegLexData::RegLexData( const gbnf::GbnfData& data, bool useStringReprs ){
 }
 
 void RegLexData::print( std::ostream& os ) const {
-    os << "RegLexData:\n nonRegexDelimiters: "<< nonRegexDelimiters;
-    os << "\n regexDelimiters: "<< regexDelimiters.regexStringRepr <<"\n Rules:\n  ";
-    for( auto&& a : rules ){
-        os << a.getID() <<" -> "<< a.regexStringRepr <<"\n  ";
+    os << "RegLexData:\n";
+    if(!nonRegexDelimiters.empty())
+        os << " nonRegexDelimiters: "<< nonRegexDelimiters <<"\n";
+    if(!ignorables.empty())
+        os << " ignorables: "<< ignorables <<"\n";
+    if(useRegexDelimiters || !regexDelimiters.regexStringRepr.empty())
+        os << " regexDelimiters: "<< regexDelimiters.regexStringRepr <<"\n";
+    if(!rules.empty()){
+        os<<" Rules:\n  ";
+        for( auto&& a : rules ){
+            os << a.getID() <<" -> "<< a.regexStringRepr <<"\n  ";
+        }
     }
 }
 
