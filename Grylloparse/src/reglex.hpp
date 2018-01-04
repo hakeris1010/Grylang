@@ -4,6 +4,7 @@
 #include <string>
 #include <regex>
 #include <set>
+#include <ostream>
 #include <gbnf/gbnf.hpp>
 
 namespace gparse{
@@ -15,15 +16,19 @@ namespace gparse{
 
 struct RegLexRule{
 private:
-    size_t id;
+    size_t id; 
 public:
     std::regex regex;
+    std::string regexStringRepr;
 
-    RegLexRule();
-    RegLexRule(size_t _id, const std::regex& _reg = std::regex()) 
-        : id( _id ), regex( _reg ) {}
-    RegLexRule(size_t _id, std::regex&& _reg) 
-        : id( _id ), regex( std::move(_reg) ) {}
+    RegLexRule(){}
+    RegLexRule(size_t _id, const std::regex& _reg = std::regex(), 
+               const std::string& stringRepr = std::string() ) 
+        : id( _id ), regex( _reg ), regexStringRepr( stringRepr ) 
+    {}
+    RegLexRule(size_t _id, std::regex&& _reg, std::string&& stringRepr) 
+        : id( _id ), regex( std::move(_reg) ), regexStringRepr( std::move(stringRepr) ) 
+    {}
 
     size_t getID() const { return id; }
 
@@ -63,10 +68,14 @@ struct RegLexData{
     std::string nonRegexDelimiters;
 
     // Otherwise, regex defines delimiters.
-    std::regex regexDelimiters;
+    RegLexRule regexDelimiters; 
+
+    // Custom whitespace (ignoreable) characters.
+    std::string ignorables;
 
     // Language Lexics properties.
     bool useRegexDelimiters = true; 
+    bool useCustomWhitespaces = false;
     bool tokenized = true;
 
     /*! Full-data constructors.
@@ -77,7 +86,7 @@ struct RegLexData{
                 const std::string& nonRegDels = std::string(),
                 const std::regex& regDels = std::regex() )
         : rules( std::move(_rules) ), nonRegexDelimiters( nonRegDels ),
-          regexDelimiters( regDels ), useRegexDelimiters( useRegDels ),
+          regexDelimiters( 0, regDels ), useRegexDelimiters( useRegDels ),
           tokenized( useRegDels || !nonRegDels.empty() )
     {}
 
@@ -86,7 +95,7 @@ struct RegLexData{
                 std::string&& nonRegDels = std::string(),
                 std::regex&& regDels = std::regex() )
         : rules( std::move(_rules) ), nonRegexDelimiters( std::move(nonRegDels) ),
-          regexDelimiters( std::move(regDels) ), useRegexDelimiters( useRegDels ),
+          regexDelimiters( 0, std::move(regDels) ), useRegexDelimiters( useRegDels ),
           tokenized( useRegDels || !nonRegDels.empty() )
     {} 
 
@@ -96,8 +105,15 @@ struct RegLexData{
      *  - Deduces the tokenizability and type of grammar from specific tags.
      *  - Every tag-rule will be converted to a regex.
      */ 
-    RegLexData( const gbnf::GbnfData& data );
+    RegLexData( const gbnf::GbnfData& data, bool useStringReprs = false );
+
+    void print( std::ostream& os ) const;
 };
+
+inline std::ostream& operator<<( std::ostream& os, const RegLexData& data ){
+    data.print( os );
+    return os;
+}
 
 }
 

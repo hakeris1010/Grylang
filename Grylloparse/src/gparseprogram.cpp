@@ -7,7 +7,7 @@
 const char* testLexics =
 "<ident> := \"\\w+\" ;\n"
 "<operator> := \"[;=+\\-\\*/\\[\\]{}<>%]\" ;\n"
-"<delim> := <operator> | \"\\w\" ;"
+"<regex_delim> := <operator> | \"\\w\" ;"
 ;
 
 const char* testProgram =
@@ -30,7 +30,7 @@ int main(int argc, char** argv){
      
     std::cout<<"\nlexicData:\n"<< lexicData <<"\n\n";
 
-    gparse::RegLexData lexicon( lexicData );
+    gparse::RegLexData lexicon( lexicData, true );
 
     std::cout<<"\nRegLexData:\n"<< lexicon <<"\n\n";
     std::cout<<"=========================\n\nTokenizing by Lexics...\n\n";

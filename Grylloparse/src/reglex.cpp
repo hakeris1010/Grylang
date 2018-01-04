@@ -1,4 +1,5 @@
 #include "reglex.hpp"
+#include <iostream>
 
 namespace gparse{
 
@@ -21,11 +22,11 @@ static void collectRegexStringFromGTokens_priv( const gbnf::GbnfData& data,
 
     // Check if there is only one option, with only one token, of type REGEX.
     // Don't use groups if so. Only Non-Recursive one-level tokens can be made so.
-    if( rule.options.size() == 1 && rule.options.children.size() == 1 &&
-        rule.options.children[0].type == gbnf::GrammarToken::REGEX_STRING && 
+    if( rule.options.size() == 1 && rule.options[0].children.size() == 1 &&
+        rule.options[0].children[0].type == gbnf::GrammarToken::REGEX_STRING && 
         idStack.empty() && !parentMultiOption )
     {
-        str += rule.options.children[0].data; 
+        str += rule.options[0].children[0].data; 
         return;
     }
 
@@ -74,19 +75,25 @@ static void collectRegexStringFromGTokens( const gbnf::GbnfData& data,
 /*! Function checks if assigned GBNF-type grammar is supported.
  *  @throws an exception if grammar contain wrong rules/tokens.
  */ 
-static inline void checkAndAssignLexicProperties( 
-        RegLexData& rl, const gbnf::GbnfData& gdata )
+static inline void checkAndAssignLexicProperties( RegLexData& rl, 
+        const gbnf::GbnfData& gdata, bool useStringRepresentations )
 {
-    // Find if delimiter is there.
+    // Find delimiters and ignorables
     size_t regexDelimTag = (size_t)(-1);
     size_t sDelimTag = (size_t)(-1);
+    size_t ignoreTag = (size_t)(-1);
+
     for( auto&& nt : gdata.tagTableConst() ){
-        if( nt.data == "regex-delim" ){
+        if( nt.data == "regex_delim" ){
             regexDelimTag = nt.getID();
             break;
         }
         if( nt.data == "delim" ){
             sDelimTag = nt.getID();
+            break;
+        } 
+        if( nt.data == "ignore" ){
+            ignoreTag = nt.getID();
             break;
         } 
     }
@@ -106,10 +113,30 @@ static inline void checkAndAssignLexicProperties(
     if( !rl.useRegexDelimiters ){
         auto&& sDelimRule = gdata.getRule( sDelimTag );
 
-        if( sDelimRule != gdata.grammarTableConst().end() )
+        if( sDelimRule != gdata.grammarTableConst().end() &&
+            sDelimRule->options.size() == 1 )
+        {
             rl.nonRegexDelimiters = sDelimRule->options[0].children[0].data;
+            //std::cout<<"Non-Regex Delim Rule: \""<< rl.nonRegexDelimiters <<"\"\n"; 
+        }
         else
             throw std::runtime_error("[RegLexData(GbnfData)]: <delim> rule is not present."); 
+    }
+
+    // If ignorable tag was found, assign ignoreables string.
+    // Ignorables can't be regex by nature, it's a list of whitespace chars.
+    if( ignoreTag != (size_t)(-1) ){
+        auto&& ignoreRule = gdata.getRule( ignoreTag );
+
+        if( ignoreRule != gdata.grammarTableConst().end() &&
+            ignoreRule->options.size() == 1 )
+        {
+            rl.ignorables = ignoreRule->options[0].children[0].data;
+            //std::cout<<"Ignoreable Rule: \""<< rl.nonRegexDelimiters <<"\"\n"; 
+        }
+        else
+            throw std::runtime_error("[RegLexData(GbnfData)]: <ignore> rule is not present."); 
+        rl.useCustomWhitespaces = true;
     }
 
     // Collect the regexes for each rule.
@@ -117,23 +144,37 @@ static inline void checkAndAssignLexicProperties(
         std::string regstr;
         collectRegexStringFromGTokens( gdata, regstr, rule );
 
-        rl.rules.insert( RegLexRule(rule.getID(), std::regex( regstr )) );
+        if( !useStringRepresentations )
+            rl.rules.insert( RegLexRule(rule.getID(), std::regex( std::move(regstr) )) );
+        else
+            rl.rules.insert( RegLexRule( rule.getID(), std::regex( regstr ), 
+                                         std::move(regstr) ) );
     }
 
+    // Find the regex delimiter rule.
     if( rl.useRegexDelimiters ){
         auto&& regDelIter = rl.rules.find( RegLexRule(regexDelimTag) );
         if( regDelIter != rl.rules.end() )
-            rl.regexDelimiters = regDelIter->regex;
+            rl.regexDelimiters = *regDelIter;
         else
             throw std::runtime_error("[RegLexData(GbnfData)]: <delim-regex> rule is not present."); 
+        // Erase the delimiter rule from there, because we no longer need it.
+        rl.rules.erase( RegLexRule(regexDelimTag) );
     }
 }
 
-
 /*! RegLexData constructor from GBNF grammar.
  */ 
-RegLexData::RegLexData( const gbnf::GbnfData& data ){
-    checkAndAssignLexicProperties( *this, data ); 
+RegLexData::RegLexData( const gbnf::GbnfData& data, bool useStringReprs ){
+    checkAndAssignLexicProperties( *this, data, useStringReprs ); 
+}
+
+void RegLexData::print( std::ostream& os ) const {
+    os << "RegLexData:\n nonRegexDelimiters: "<< nonRegexDelimiters;
+    os << "\n regexDelimiters: "<< regexDelimiters.regexStringRepr <<"\n Rules:\n  ";
+    for( auto&& a : rules ){
+        os << a.getID() <<" -> "<< a.regexStringRepr <<"\n  ";
+    }
 }
 
 }
