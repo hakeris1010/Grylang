@@ -37,7 +37,7 @@ struct StreamStats{
  *  - Assumes that the passed RegLexData is fully valid. No checks are being done.
  *  - Tokenizes the stream by using rules provided in the RegLexData passed.
  */ 
-class LexerImpl_SimpleDelim : public BaseLexer
+class LexerImpl : public BaseLexer
 {
 // Specific constants.
 public:
@@ -69,10 +69,7 @@ private:
 
     // We'll use this only if useBlockingQueue.
     std::unique_ptr< gtools::BlockingQueue< LexicToken > > bQueue;
-
-    // Tokenizing parameters
-    std::function< int(char) > getCharType;
-
+    
     // State variables
     volatile bool running = false; 
     volatile bool endOfStream = false;
@@ -84,13 +81,20 @@ private:
     char buffer[ BUFFER_SIZE ];
     char* bufferPointer = buffer;
     const char* bufferEnd = buffer;
+     
 
     // Backend functions.
     void throwError( std::string message );
     inline void updateLineStats( char c );
 
     bool updateBuffer( size_t start = 0 );
-    int getNextTokenPriv( LexicToken& tok );
+
+    // Tokenizing parameters
+    std::function< int(char) > getCharType; 
+
+    // TODO: Use dynamically assigned Tokenizers,
+    // or even use a separate class for tokenizing.
+    std::function< int(LexicToken&) > getNextTokenPriv; 
 
     void setCustomWhitespacing(){
         // If using custom whitespaces, function must check for it.
@@ -118,12 +122,12 @@ private:
 
 public:
     // Move-semantic and Copy-semantic constructors.
-    LexerImpl_SimpleDelim( const RegLexData& lexicData, std::istream& strm, bool useBQ=false)
+    LexerImpl( const RegLexData& lexicData, std::istream& strm, bool useBQ=false)
         : useBlockingQueue( useBQ ), lexics( lexicData ), rdr( strm ), 
           bQueue( useBQ ? new gtools::BlockingQueue< LexicToken >() : nullptr )
     { setCustomWhitespacing(); }
 
-    LexerImpl_SimpleDelim( RegLexData&& lexicData, std::istream& stream, bool useBQ = false )
+    LexerImpl( RegLexData&& lexicData, std::istream& stream, bool useBQ = false )
         : useBlockingQueue( useBQ ), lexics( std::move(lexicData) ), rdr( stream ), 
           bQueue( useBQ ? new gtools::BlockingQueue< LexicToken >() : nullptr )
     { setCustomWhitespacing(); }
@@ -134,7 +138,7 @@ public:
 
 /*! A little helper for throwing errors.
  */ 
-void LexerImpl_SimpleDelim::throwError( std::string message ){
+void LexerImpl::throwError( std::string message ){
     throw std::runtime_error( "[" + std::to_string( stats.lineCount ) +":"+
                              std::to_string( stats.posInLine )+"]: "+message );
 }
@@ -143,7 +147,7 @@ void LexerImpl_SimpleDelim::throwError( std::string message ){
  *  @param start - the offset from buffer's beginning, to which to write data.
  *  @return true, if read some data, false if no data was read.
  */ 
-bool LexerImpl_SimpleDelim::updateBuffer( size_t start ){
+bool LexerImpl::updateBuffer( size_t start ){
     // If buffer is already exhausted, read stuff.
     if( bufferPointer >= bufferEnd ){
         if( start >= sizeof(buffer) ) // Fix start position if wrong.
@@ -152,7 +156,7 @@ bool LexerImpl_SimpleDelim::updateBuffer( size_t start ){
         rdr.read( buffer + start, sizeof(buffer) - start );
         size_t count = rdr.gcount();
 
-        std::cout <<"[LexerImpl_SimpleDelim::updateBuffer()]: Updating buffer. ("<< count <<" chars).\n";
+        std::cout <<"[LexerImpl::updateBuffer()]: Updating buffer. ("<< count <<" chars).\n";
 
         // No chars were read - stream has ended. No more data can be got.
         if( count == 0 ){
@@ -175,7 +179,7 @@ bool LexerImpl_SimpleDelim::updateBuffer( size_t start ){
 
 /*! Inline f-on updating stream stats based on character got.
  */ 
-inline void LexerImpl_SimpleDelim::updateLineStats( char c ){
+inline void LexerImpl::updateLineStats( char c ){
     if( c == '\n' ){
         stats.lineCount++;
         stats.posInLine = 0;
@@ -189,8 +193,8 @@ inline void LexerImpl_SimpleDelim::updateLineStats( char c ){
  *  - Iterates the buffer, searching for the delimiters, and at the same time 
  *    updates the statistics (line count, etc).
  */ 
-int LexerImpl_SimpleDelim::getNextTokenPriv( LexicToken& tok ){
-    std::cout <<"[LexerImpl_SimpleDelim::getNextToken()]: Skipping WS...\n";
+int LexerImpl::getNextTokenPriv_SimpleDelim( LexicToken& tok ){
+    std::cout <<"[LexerImpl::getNextToken()]: Skipping WS...\n";
     
     // Firstly, skip all leading Whitespaces.
     while(true){
@@ -288,7 +292,7 @@ int LexerImpl_SimpleDelim::getNextTokenPriv( LexicToken& tok ){
  *    - Can be called only when multithreading (using the Blocking Queue).
  *    - Also, only one instance of this function may execute at time.
  */ 
-void LexerImpl_SimpleDelim::start(){
+void LexerImpl::start(){
     // Check if call conditions are met (not running already, and using threads).
     if( running || !useBlockingQueue )
         return;
@@ -317,7 +321,7 @@ void LexerImpl_SimpleDelim::start(){
  *  @param tok - reference to token to-be-filled.
  *  @return true if more tokens can be expected - not end.
  */ 
-bool LexerImpl_SimpleDelim::getNextToken( LexicToken& tok ){
+bool LexerImpl::getNextToken( LexicToken& tok ){
     // If using multithreading, wait until token gets put into the queue.
     // If stream has ended, but queue has tokens, extract them.
     if( useBlockingQueue ){
@@ -338,11 +342,11 @@ bool LexerImpl_SimpleDelim::getNextToken( LexicToken& tok ){
  * TODO: Impl depending on delimiter type used - simple or regexed.
  */ 
 Lexer::Lexer( const RegLexData& lexicData, std::istream& stream, bool useBQ )
-    : impl( new LexerImpl_SimpleDelim( lexicData, stream, useBQ ) )
+    : impl( new LexerImpl( lexicData, stream, useBQ ) )
 {}
 
 Lexer::Lexer( RegLexData&& lexicData, std::istream& stream, bool useBQ )
-    : impl( new LexerImpl_SimpleDelim( lexicData, stream, useBQ ) )
+    : impl( new LexerImpl( lexicData, stream, useBQ ) )
 {}
 
 void Lexer::start(){
