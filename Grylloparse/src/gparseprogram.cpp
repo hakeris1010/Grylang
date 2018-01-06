@@ -14,7 +14,7 @@ const char* testLexics =
 ;
 
 const char* testProgram =
-"int i = 0;\nwhile(i)=0;";
+"int i = 0;\n";
 
 
 int main(int argc, char** argv){
@@ -46,7 +46,8 @@ int main(int argc, char** argv){
     while( areMore ){
         gparse::LexicToken tok;
         areMore = lexer.getNextToken( tok );
-        std::cout<< tok <<"\n";
+
+        std::cout<< "\nGOT TOKEN!!! : \n"<< tok <<"\n\n";
     }
 
     return 0;

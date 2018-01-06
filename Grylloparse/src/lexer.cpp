@@ -37,7 +37,7 @@ struct StreamStats{
  *  - Assumes that the passed RegLexData is fully valid. No checks are being done.
  *  - Tokenizes the stream by using rules provided in the RegLexData passed.
  */ 
-class LexerImpl : public BaseLexer
+class LexerImpl_SimpleDelim : public BaseLexer
 {
 // Specific constants.
 public:
@@ -51,6 +51,11 @@ public:
     const static int TOKEN_INVALID_CONFIGURATION = -2;
     const static int TOKEN_GOOD           = 0;
     const static int TOKEN_NO_MATCH_FOUND = 1;
+
+    // Character tokenizing specifics.
+    const static int CHAR_TOKEN      = 0;
+    const static int CHAR_DELIM      = 1;
+    const static int CHAR_WHITESPACE = 2;
 
 private:
     // Mode and Lexic Data
@@ -66,9 +71,8 @@ private:
     std::unique_ptr< gtools::BlockingQueue< LexicToken > > bQueue;
 
     // Tokenizing parameters
-    std::function< bool(char) > isWhitespace = 
-        std::function< bool(char) >( [](char c){ return std::iswspace( c ); } );
-     
+    std::function< int(char) > getCharType;
+
     // State variables
     volatile bool running = false; 
     volatile bool endOfStream = false;
@@ -89,21 +93,36 @@ private:
     int getNextTokenPriv( LexicToken& tok );
 
     void setCustomWhitespacing(){
+        // If using custom whitespaces, function must check for it.
         if( lexics.useCustomWhitespaces && !lexics.ignorables.empty() ){
-            isWhitespace = [ & ] ( char c ) { 
-                return (lexics.ignorables.find( c ) != std::string::npos);
+            getCharType = [ & ] ( char c ) { 
+                if(lexics.nonRegexDelimiters.find( c ) != std::string::npos)
+                    return CHAR_DELIM;
+                if(lexics.ignorables.find( c ) != std::string::npos)
+                    return CHAR_WHITESPACE;
+                return CHAR_TOKEN;
+            };
+        }
+        // If not, use standard whitespaces.
+        else{
+            getCharType = [ & ] ( char c ) { 
+                if(lexics.nonRegexDelimiters.find( c ) != std::string::npos)
+                    return CHAR_DELIM;
+                if( std::iswspace( c ) )
+                    return CHAR_WHITESPACE;
+                return CHAR_TOKEN; 
             };
         }
     }
 
 public:
     // Move-semantic and Copy-semantic constructors.
-    LexerImpl( const RegLexData& lexicData, std::istream& stream, bool useBQ = false )
-        : useBlockingQueue( useBQ ), lexics( lexicData ), rdr( stream ), 
+    LexerImpl_SimpleDelim( const RegLexData& lexicData, std::istream& strm, bool useBQ=false)
+        : useBlockingQueue( useBQ ), lexics( lexicData ), rdr( strm ), 
           bQueue( useBQ ? new gtools::BlockingQueue< LexicToken >() : nullptr )
     { setCustomWhitespacing(); }
 
-    LexerImpl( RegLexData&& lexicData, std::istream& stream, bool useBQ = false )
+    LexerImpl_SimpleDelim( RegLexData&& lexicData, std::istream& stream, bool useBQ = false )
         : useBlockingQueue( useBQ ), lexics( std::move(lexicData) ), rdr( stream ), 
           bQueue( useBQ ? new gtools::BlockingQueue< LexicToken >() : nullptr )
     { setCustomWhitespacing(); }
