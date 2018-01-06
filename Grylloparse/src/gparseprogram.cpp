@@ -7,8 +7,10 @@
 const char* testLexics =
 "<ident> := \"\\w+\" ;\n"
 "<operator> := \"[;=+\\-\\*/\\[\\]{}<>%]\" ;\n"
-"<regex_delim> := <operator> | \"\\w\" ;"
-"<ignore> := \"[abc]\" ;"
+"<delim> := \";=+-*/[]{}()<>%\""
+;
+//"<ignore> := \"[abc]\" ;"
+//"<regex_delim> := <operator> | \"\\w\" ;"
 ;
 
 const char* testProgram =
