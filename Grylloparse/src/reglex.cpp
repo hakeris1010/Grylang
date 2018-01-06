@@ -9,15 +9,16 @@ namespace gparse{
  *  @param str - string to which to append all the collected stuff
  *  @param rule - starting GrammarRule,
  *  @param recLevel - level of recursion.
+ *  @return true, if successfully collected a regex.
  */ 
-static void collectRegexStringFromGTokens_priv( const gbnf::GbnfData& data,
+static bool collectRegexStringFromGTokens_priv( const gbnf::GbnfData& data,
     std::string& str, const gbnf::GrammarRule& rule, std::set<int>& idStack,
     bool parentMultiOption = false )
 {
     // First, check if we haven't came into a recursive loop.
     // Check if we have already processed a rule with an ID of "rule.getID()".
     if( idStack.find( (int)(rule.getID()) ) != idStack.end() ) 
-        return;
+        return false;
     else // Insert current ID as the one being processed.
         idStack.insert( (int)(rule.getID()) );
 
@@ -28,7 +29,7 @@ static void collectRegexStringFromGTokens_priv( const gbnf::GbnfData& data,
         idStack.empty() && !parentMultiOption )
     {
         str += rule.options[0].children[0].data; 
-        return;
+        return true;
     }
 
     // Regex group start - use Non-Capturing Groups.
@@ -65,12 +66,8 @@ static void collectRegexStringFromGTokens_priv( const gbnf::GbnfData& data,
 
     // At the end, pop current rule's ID from the stack.
     idStack.erase( (int)(rule.getID()) );
-}
 
-static void collectRegexStringFromGTokens( const gbnf::GbnfData& data,
-                        std::string& str, const auto& rule ){
-    std::set<int> stack;
-    collectRegexStringFromGTokens_priv( data, str, rule, stack );
+    return true;
 }
 
 /*! Function checks if assigned GBNF-type grammar is supported.
@@ -83,6 +80,8 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
     size_t regexDelimTag = (size_t)(-1);
     size_t sDelimTag = (size_t)(-1);
     size_t ignoreTag = (size_t)(-1);
+
+    std::set<int> ignoredTags;
 
     for( auto&& nt : gdata.tagTableConst() ){
         if( nt.data == "regex_delim" ){
@@ -115,6 +114,7 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
             sDelimRule->options.size() == 1 )
         {
             rl.nonRegexDelimiters = sDelimRule->options[0].children[0].data;
+            ignoredTags.insert( sDelimTag );
             std::cout<<"Non-Regex Delim Rule: \""<< rl.nonRegexDelimiters <<"\"\n"; 
         }
         else
@@ -130,6 +130,7 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
             ignoreRule->options.size() == 1 )
         {
             rl.ignorables = ignoreRule->options[0].children[0].data;
+            ignoredTags.insert( ignoreTag );
             std::cout<<"Ignoreable Rule: \""<< rl.nonRegexDelimiters <<"\"\n"; 
         }
         else
@@ -140,13 +141,13 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
     // Collect the regexes for each rule.
     for( auto&& rule : gdata.grammarTableConst() ){
         std::string regstr;
-        collectRegexStringFromGTokens( gdata, regstr, rule );
-
-        if( !useStringRepresentations )
-            rl.rules.insert( RegLexRule(rule.getID(), std::regex( std::move(regstr) )) );
-        else
-            rl.rules.insert( RegLexRule( rule.getID(), std::regex( regstr ), 
-                                         std::move(regstr) ) );
+        if( collectRegexStringFromGTokens_priv( gdata, regstr, rule, ignoredTags ) ){
+            if( !useStringRepresentations )
+                rl.rules.insert( RegLexRule(rule.getID(), std::regex( std::move(regstr) )) );
+            else
+                rl.rules.insert( RegLexRule( rule.getID(), std::regex( regstr ),  \
+                                             std::move(regstr) ) );
+        }
     }
 
     // Find the regex delimiter rule.
@@ -156,17 +157,8 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
             rl.regexDelimiters = *regDelIter;
         else
             throw std::runtime_error("[RegLexData(GbnfData)]: <delim-regex> rule is not present."); 
-    }
-
-    // Removes rules which define special data (delimiters, ignorables).
-    if(regexDelimTag != (size_t)(-1))
         rl.rules.erase( RegLexRule(regexDelimTag) );
-
-    if(sDelimTag != (size_t)(-1))
-        rl.rules.erase( RegLexRule(sDelimTag) );
-
-    if(ignoreTag != (size_t)(-1))
-        rl.rules.erase( RegLexRule(ignoreTag) );
+    }
 }
 
 /*! RegLexData constructor from GBNF grammar.
