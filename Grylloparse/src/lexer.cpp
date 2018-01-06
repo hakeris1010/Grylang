@@ -21,8 +21,15 @@ namespace gparse{
  */
 
 /*! Stream state structure.
- *  Contains information about 
+ *  Contains information about line positions, etc.
  */
+struct StreamStats{
+    size_t lineCount = 0;
+    size_t posInLine = 0;
+
+    StreamStats(){}
+    StreamStats(size_t lns, size_t posl) : lineCount( lns ), posInLine( posl ) {}
+};
 
 /*! Main lexer implementation.
  *  - Takes RegLexData as a lexicon grammar, passed as ctor parameter.
@@ -31,6 +38,17 @@ namespace gparse{
  */ 
 class LexerImpl : public BaseLexer
 {
+// Specific constants.
+public:
+    const static size_t BUFFER_SIZE = 2048;
+
+    // Token extractor responses.
+    // < 0 means fatal error
+    // = 0 means good, normal token
+    // > 0 means unusual token
+    const static int END_OF_FILE = -1;
+    const static int GOOD_TOKEN = 0;
+
 private:
     // Mode and Lexic Data
     const bool useBlockingQueue;
@@ -45,35 +63,46 @@ private:
     std::unique_ptr< gtools::BlockingQueue< LexicToken > > bQueue;
 
     // Tokenizing parameters
-    std::string delimiters;
-    bool regexedDelimiters = false; // If false, delimiters are just an array of symbols.
+    std::function< bool(char) > isWhitespace( [](char c){ return std::iswspace( c ) } );
      
     // State variables
     volatile bool running = false; 
     volatile bool endOfStream = false;
 
     // Stream state specifics.
-    size_t lineCount = 0;
-    size_t posInLine = 0;
+    StreamStats stats;    
 
     // Token's store buffer.
-    std::string tokenBuff;
+    char buffer[ BUFFER_SIZE ];
+    char* bufferPointer;
+    const char* bufferEnd;
 
     // Backend functions.
-    int getNextTokenPriv( LexicToken& tok );
-    void collectRegexStringFromGTokens( std::string& str, const auto& rule, int recLevel = 0 );
     void throwError( std::string message );
+    inline void updateLineStats( char c );
+
+    bool updateBuffer();
+    int getNextTokenPriv( LexicToken& tok );
+
+    void setCustomWhitespacing(){
+        if( lexicData.useCustomWhitespaces && !lexicData.ignorables.empty() ){
+            isWhitespace = [](char c){ 
+                return (lexicData.ignorables.find( c ) != std::string::npos);
+            };
+        }
+    }
 
 public:
+    // Move-semantic and Copy-semantic constructors.
     LexerImpl( const RegLexData& lexicData, std::istream& stream, bool useBQ = false )
         : useBlockingQueue( useBQ ), lexics( lexicData ), rdr( stream ), 
           bQueue( useBQ ? new gtools::BlockingQueue< LexicToken >() : nullptr )
-    { tokenBuff.reserve(256); }
+    { setCustomWhitespacing(); }
 
     LexerImpl( RegLexData&& lexicData, std::istream& stream, bool useBQ = false )
         : useBlockingQueue( useBQ ), lexics( std::move(lexicData) ), rdr( stream ), 
           bQueue( useBQ ? new gtools::BlockingQueue< LexicToken >() : nullptr )
-    { tokenBuff.reserve(256); }
+    { setCustomWhitespacing(); }
 
     void start();
     bool getNextToken( LexicToken& tok );
@@ -82,8 +111,40 @@ public:
 /*! A little helper for throwing errors.
  */ 
 void LexerImpl::throwError( std::string message ){
-    throw std::runtime_error( "[" + std::to_string( lineCount ) +":"+
-                             std::to_string( posInLine )+"]: "+message );
+    throw std::runtime_error( "[" + std::to_string( stats.lineCount ) +":"+
+                             std::to_string( stats.posInLine )+"]: "+message );
+}
+
+/*! Updates the read buffer, and sets stream end flag, if ended.
+ *  @return true, if read some data, false if no data was read.
+ */ 
+bool LexerImpl::updateBuffer(){
+    // If buffer is already exhausted, read stuff.
+    if( bufferPointer >= bufferEnd ){
+        rdr.read( buffer, sizeof(buffer) );
+        size_t count = rdr.gcount();
+
+        // No chars were read - stream has ended. No more data can be got.
+        if( count == 0 )
+            return false;
+
+        // Set buffer end to the point where the last read character is.
+        bufferEnd = buffer + rdr.gcount();
+        bufferPointer = buffer;
+    }
+    // Buffer is not exhausted - data still avairabru.
+    return true;
+}
+
+/*! Inline f-on updating stream stats based on character got.
+ */ 
+inline void LexerImpl::updateLineStats( char c ){
+    if( c == '\n' ){
+        stats.lineCount++;
+        stats.posInLine = 0;
+    }
+    else
+        stats.posInLine++;
 }
 
 /*! Main backend function.
@@ -96,9 +157,34 @@ int LexerImpl::getNextTokenPriv( LexicToken& tok ){
     endOfStream = true;
     return 1;
 
+    // Change remaining buffer, and if empty, update it.
+    if( !updateBuffer() ){
+        // Update buffer returned false - the file has ended. Return END_OF_FILE.
+        return END_OF_FILE;
+    }
+
+    // Iterate the buffer, searching for the delimiters, and at the same time 
+    // update the statistics (line count, etc).
+
     // Delimiter is just a char array (not a regex) - read a chunk until delimiter.
     if( !lexics.useRegexDelimiters ){
+        const char* tokenStart = bufferPointer;
         
+        for( ; bufferPointer < bufferEnd; bufferPointer++ ){
+            updateLineStats( *bufferPointer );
+
+            // Check if delimiter. Ignorable(Whitespace) is ALWAYS a delimiter.
+            if( nonRegexDelimiters.find( *bufferPointer ) != std::string::npos ){
+                bool ignore = isWhitespace( *bufferPointer );
+                if( tokenStart < bufferPointer ){
+
+                } 
+
+                // Perform regex-search on the current token.
+            }
+            else
+                bufferPointer++;
+        }
     }
 
 
