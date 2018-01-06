@@ -1,6 +1,6 @@
 #include "lexer.hpp"
+#include <functional>
 #include <gryltools/blockingqueue.hpp>
-#include <gryltools/stackreader.hpp>
 
 namespace gparse{
 /*
@@ -46,8 +46,10 @@ public:
     // < 0 means fatal error
     // = 0 means good, normal token
     // > 0 means unusual token
-    const static int END_OF_FILE = -1;
-    const static int GOOD_TOKEN = 0;
+    const static int TOKEN_END_OF_FILE    = -1;
+    const static int TOKEN_INVALID_CONFIGURATION = -2;
+    const static int TOKEN_GOOD           = 0;
+    const static int TOKEN_NO_MATCH_FOUND = 1;
 
 private:
     // Mode and Lexic Data
@@ -63,7 +65,8 @@ private:
     std::unique_ptr< gtools::BlockingQueue< LexicToken > > bQueue;
 
     // Tokenizing parameters
-    std::function< bool(char) > isWhitespace( [](char c){ return std::iswspace( c ) } );
+    std::function< bool(char) > isWhitespace = 
+        std::function< bool(char) >( [](char c){ return std::iswspace( c ); } );
      
     // State variables
     volatile bool running = false; 
@@ -85,9 +88,9 @@ private:
     int getNextTokenPriv( LexicToken& tok );
 
     void setCustomWhitespacing(){
-        if( lexicData.useCustomWhitespaces && !lexicData.ignorables.empty() ){
-            isWhitespace = [](char c){ 
-                return (lexicData.ignorables.find( c ) != std::string::npos);
+        if( lexics.useCustomWhitespaces && !lexics.ignorables.empty() ){
+            isWhitespace = [ & ] ( char c ) { 
+                return (lexics.ignorables.find( c ) != std::string::npos);
             };
         }
     }
@@ -125,8 +128,12 @@ bool LexerImpl::updateBuffer(){
         size_t count = rdr.gcount();
 
         // No chars were read - stream has ended. No more data can be got.
-        if( count == 0 )
+        if( count == 0 ){
+            // Mark stream end.
+            endOfStream = true;
+
             return false;
+        }
 
         // Set buffer end to the point where the last read character is.
         bufferEnd = buffer + rdr.gcount();
@@ -151,16 +158,10 @@ inline void LexerImpl::updateLineStats( char c ){
  *  Does all the true job of getting the tokens.
  */ 
 int LexerImpl::getNextTokenPriv( LexicToken& tok ){
-    tok.id = 1337;
-    tok.data = "kawaii~~";
-
-    endOfStream = true;
-    return 1;
-
     // Change remaining buffer, and if empty, update it.
     if( !updateBuffer() ){
         // Update buffer returned false - the file has ended. Return END_OF_FILE.
-        return END_OF_FILE;
+        return TOKEN_END_OF_FILE;
     }
 
     // Iterate the buffer, searching for the delimiters, and at the same time 
@@ -170,24 +171,43 @@ int LexerImpl::getNextTokenPriv( LexicToken& tok ){
     if( !lexics.useRegexDelimiters ){
         const char* tokenStart = bufferPointer;
         
+        // Loop the buffer until delimiters.
         for( ; bufferPointer < bufferEnd; bufferPointer++ ){
             updateLineStats( *bufferPointer );
 
             // Check if delimiter. Ignorable(Whitespace) is ALWAYS a delimiter.
-            if( nonRegexDelimiters.find( *bufferPointer ) != std::string::npos ){
-                bool ignore = isWhitespace( *bufferPointer );
+            if( lexics.nonRegexDelimiters.find( *bufferPointer ) != std::string::npos )
+            {
+                // Token is not empty - perform regex-search on the current token.
                 if( tokenStart < bufferPointer ){
+                    for( auto&& rule : lexics.rules ){
+                        // If current token matches regex, fill up the LexicToken, and true.
+                        if( std::regex_match( tokenStart, (const char*)bufferPointer, 
+                            rule.regex ) )
+                        {
+                            tok.id = rule.getID();
+                            tok.data = std::string( tokenStart, (const char*)bufferPointer );
 
+                            // Woohoo! Found a valid token!
+                            return TOKEN_GOOD;
+                        }
+                    }
+                    // No match found - invalid token.
+                    tok.data = std::string( tokenStart, (const char*)bufferPointer );
+                    tok.id = LexicToken::INVALID_TOKEN;
+
+                    return TOKEN_NO_MATCH_FOUND;
                 } 
 
-                // Perform regex-search on the current token.
+                // If current deliminator is WS, the token start is the next deliminator.
+                if( isWhitespace( *bufferPointer ) ){
+                    tokenStart = bufferPointer + 1;
+                }
             }
-            else
-                bufferPointer++;
         }
     }
 
-
+    return TOKEN_INVALID_CONFIGURATION;
 }
 
 /*! Runner function which fills the blocking queue with tokens.
@@ -208,12 +228,12 @@ void LexerImpl::start(){
         int tt = getNextTokenPriv( tok );
 
         // If good, put to queue.
-        if(tt == 0)
-            bQueue->push( std::move( tok ) );
+        if(tt >= 0)
+            bQueue->push( std::move( tok ) ); 
 
         // Break loop if error or loop end.
         if( tt < 0 || endOfStream )
-            break;
+            break; 
     }
 
     running = false;    

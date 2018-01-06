@@ -14,6 +14,8 @@ namespace gparse{
  *  @data - an actual string data of the token.
  */     
 struct LexicToken{
+    const static int INVALID_TOKEN = -1;
+
     int id;
     std::string data;    
 
