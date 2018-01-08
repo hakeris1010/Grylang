@@ -175,7 +175,7 @@ tests: $(TEST_SOURCES:.cpp=.o)
 #===================================#
 
 clean:
-	$(RM) *.o */*.o */*/*.o */*/*/*.o
+	$(RM) *.o */*.o */*/*.o 
 
 clean_all: clean
 	$(RM) -rf bin lib

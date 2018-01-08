@@ -51,6 +51,7 @@ public:
     const static int TOKEN_INVALID_CONFIGURATION = -2;
     const static int TOKEN_GOOD           = 0;
     const static int TOKEN_NO_MATCH_FOUND = 1;
+    const static int TOKEN_PARTIAL        = 2;
 
     // Character tokenizing specifics.
     const static int CHAR_TOKEN      = 0;
@@ -189,6 +190,10 @@ inline void LexerImpl::updateLineStats( char c ){
 }
 
 /*! Main backend function.
+ *  FIXME: The whole delimited token design is flawed.
+ *         It works only when all tokens are separated by, let's say, whitespaces.
+ *         In practical use, it's not feasible. 
+ *
  *  Does all the true job of getting the tokens.
  *  - Iterates the buffer, searching for the delimiters, and at the same time 
  *    updates the statistics (line count, etc).
@@ -282,6 +287,111 @@ int LexerImpl::getNextTokenPriv_SimpleDelim( LexicToken& tok ){
             bufferEnd = buffer+1;
         }
     } 
+
+    return TOKEN_INVALID_CONFIGURATION;
+}
+
+/*! Main backend function for the universal, RegEx'd tokenizing.
+ *  Does all the true job of getting the tokens.
+ *  - Iterates the buffer, getting characters one by one, and checking if current string
+ *    matches at least one regex.
+ *  - Main disadvantage - the time is exponential depending on token's lenght,
+ *    in other words, O(n^m), where 
+ *    - m is lenght of the token,
+ *    - n is the count of rules.
+ */ 
+int LexerImpl::getNextTokenPriv_Regexed( LexicToken& tok ){
+    std::cout <<"[LexerImpl::getNextTokenPriv_Regexed()]: Skipping WS...\n";
+    
+    // Firstly, skip all leading Whitespaces.
+    while(true){
+        for( ; bufferPointer < bufferEnd; bufferPointer++ ){
+            updateLineStats( *bufferPointer );
+
+            if( getCharType( *bufferPointer ) != CHAR_WHITESPACE )
+                goto _wsLoopEnd;
+        }
+
+        // Buffer exhausted. Update buffer - fetch new data.
+        if( !updateBuffer() ){
+            // Update buffer returned false - the file has ended. 
+            return TOKEN_END_OF_FILE;
+        }
+    } 
+    _wsLoopEnd:
+
+    // Increment buffer pointer, to proceed to other character after the 
+    ++bufferPointer;
+     
+    std::cout <<"After WS skip: Buffpos: "<< (int)(bufferPointer - buffer) <<
+                ", Bufflen: "<< (int)(bufferEnd - buffer) <<
+                ", Streampos: "<< rdr.tellg() <<"\n";
+    
+    // At this point, the buffer pointer points to a non-whitespace character.
+    // Mark current position as token start, and go on to the next character.
+    const char* tokenStart = bufferPointer;
+    ++bufferPointer;
+
+    while( true ) {
+        for( ; bufferPointer < bufferEnd; bufferPointer++ ){
+            // Character got. Now perform checks.
+            updateLineStats( *bufferPointer );
+
+            // We don't need to check the type of current character.
+            // We just need to check if current token matches at least one regex.
+            // If there were some errors, but token is still "found" inside, we will 
+            // still use that token.
+            std::cmatch results;
+            int firstPartialRule = -1;
+            
+            for( auto&& rule : lexics.rules ){
+                if( std::regex_search( tokenStart, (const char*)(bufferPointer), 
+                                       results, rule.regex ) )
+                {
+                    // Examine position. If position is not start, check other rules,
+                    // But remember the ID of this one too.
+                    if( results.position() != 0 && firstPartialRule < 0 ){
+                        firstPartialRule = rule.getID();
+                        continue;
+                    }
+                    
+                    // If position is start, it means token is fully good.
+                    tok.id = rule.getID();
+                    tok.data = std::string(tokenStart, (const char*)(bufferPointer));
+
+                    // Woohoo! Found a valid token!
+                    std::cout <<" MATCH FOUND! At: "<< (size_t)(bufferPointer - tokenStart) 
+                              <<", ID: "<< tok.id <<"\n\n"; 
+                    return TOKEN_GOOD;
+                }
+            }
+
+            // Partial match was found. It means there were illegal characters on a token.
+            if( firstPartialRule >= 0 ){
+                tok.id = rule.getID();
+                tok.data = std::string(tokenStart, (const char*)(bufferPointer));
+
+                // Woohoo! Found a valid token!
+                std::cout <<" MATCH FOUND! At: "<< (size_t)(bufferPointer - tokenStart) 
+                          <<", ID: "<< tok.id <<"\n\n"; 
+                return TOKEN_PARTIAL; 
+            }
+        }
+
+        // Check if token is too long (more than 75% of buffer's size.)
+        size_t toksize = (size_t)( bufferEnd - tokenStart );
+
+        if( toksize >= (int)((double)BUFFER_SIZE * 0.75) )
+            break;
+        // If not, reallocate memory and update buffer.
+        else{
+            std::memmove( buffer, tokenStart, toksize );
+            tokenStart = buffer;
+        }
+    } 
+
+    // Mark token as Invalid.
+    tok.id = LexicToken::INVALID_TOKEN;
 
     return TOKEN_INVALID_CONFIGURATION;
 }
