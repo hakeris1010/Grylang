@@ -41,7 +41,7 @@ int main(int argc, char** argv){
 
     gparse::Lexer lexer( lexicon, pstream );
 
-    bool areMore = false;
+    bool areMore = true;
     while( areMore ){
         gparse::LexicToken tok;
         areMore = lexer.getNextToken( tok );

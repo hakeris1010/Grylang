@@ -1,0 +1,5 @@
+break main
+break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/gparseprogram.cpp:47
+break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/lexer.cpp:471
+break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/lexer.cpp:331
+break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/lexer.cpp:229

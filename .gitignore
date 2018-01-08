@@ -71,3 +71,4 @@ playground/
 
 # Logfiles
 *.log
+*.stackdump
