@@ -13,7 +13,7 @@ namespace gparse{
  */ 
 static bool collectRegexStringFromGTokens_priv( const gbnf::GbnfData& data,
     std::string& str, const gbnf::GrammarRule& rule, std::set<int>& idStack,
-    bool parentMultiOption = false )
+    bool parentMultiOption = false, size_t recLevel = 0 )
 {
     // First, check if we haven't came into a recursive loop.
     // Check if we have already processed a rule with an ID of "rule.getID()".
@@ -26,7 +26,7 @@ static bool collectRegexStringFromGTokens_priv( const gbnf::GbnfData& data,
     // Don't use groups if so. Only Non-Recursive one-level tokens can be made so.
     if( rule.options.size() == 1 && rule.options[0].children.size() == 1 &&
         rule.options[0].children[0].type == gbnf::GrammarToken::REGEX_STRING && 
-        idStack.empty() && !parentMultiOption )
+        !parentMultiOption )
     {
         str += rule.options[0].children[0].data; 
         return true;
@@ -55,7 +55,7 @@ static bool collectRegexStringFromGTokens_priv( const gbnf::GbnfData& data,
                 auto&& iter = data.getRule( token.id );
                 if( iter != data.grammarTableConst().end() ){
                     collectRegexStringFromGTokens_priv( data, str, *iter, idStack,
-                           rule.options.size() > 1 );
+                           rule.options.size() > 1, recLevel+1 );
                 }
             }
         }
