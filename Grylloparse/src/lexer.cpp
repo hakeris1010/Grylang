@@ -95,17 +95,25 @@ private:
 
     // TODO: Use dynamically assigned Tokenizers,
     // or even use a separate class for tokenizing.
-    std::function< int(LexicToken&) > getNextTokenPriv; 
+    std::function< int(LexerImpl&, LexicToken&) > getNextTokenPriv; 
 
-    void setCustomWhitespacing(){
+    void setFunctions(){
+        // Set tokenizer.
+        if( !getNextTokenPriv ){
+            if( lexics.useRegexDelimiters )
+                getNextTokenPriv = getNextTokenPriv_Regexed ;
+            else
+                getNextTokenPriv = getNextTokenPriv_SimpleDelim;
+        }
+
         // If using custom whitespaces, function must check for it.
         // Whitespace IS a delimiter.
         if( lexics.useCustomWhitespaces && !lexics.ignorables.empty() ){
             getCharType = [ & ] ( char c ) { 
                 if(lexics.ignorables.find( c ) != std::string::npos)
                     return CHAR_WHITESPACE; 
-                if(lexics.nonRegexDelimiters.find( c ) != std::string::npos)
-                    return CHAR_DELIM;
+                //if(lexics.nonRegexDelimiters.find( c ) != std::string::npos)
+                //    return CHAR_DELIM;
                 return CHAR_TOKEN;
             };
         }
@@ -114,24 +122,33 @@ private:
             getCharType = [ & ] ( char c ) { 
                 if( std::iswspace( c ) )
                     return CHAR_WHITESPACE; 
-                if(lexics.nonRegexDelimiters.find( c ) != std::string::npos)
-                    return CHAR_DELIM;
+                //if(lexics.nonRegexDelimiters.find( c ) != std::string::npos)
+                //    return CHAR_DELIM;
                 return CHAR_TOKEN; 
             };
         }
     }
 
+    static int getNextTokenPriv_SimpleDelim( LexerImpl& lex, LexicToken& tok );
+    static int getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok );
+
 public:
     // Move-semantic and Copy-semantic constructors.
-    LexerImpl( const RegLexData& lexicData, std::istream& strm, bool useBQ=false)
+    LexerImpl( const RegLexData& lexicData, std::istream& strm, bool useBQ=false, 
+               const std::function< int(LexerImpl&, LexicToken&) >& getNxTk = 
+                     std::function< int(LexerImpl&, LexicToken&) >() )
         : useBlockingQueue( useBQ ), lexics( lexicData ), rdr( strm ), 
-          bQueue( useBQ ? new gtools::BlockingQueue< LexicToken >() : nullptr )
-    { setCustomWhitespacing(); }
+          bQueue( useBQ ? new gtools::BlockingQueue< LexicToken >() : nullptr ),
+          getNextTokenPriv( getNxTk )
+    { setFunctions(); }
 
-    LexerImpl( RegLexData&& lexicData, std::istream& stream, bool useBQ = false )
+    LexerImpl( RegLexData&& lexicData, std::istream& stream, bool useBQ = false,
+               std::function< int(LexerImpl&, LexicToken&) >&& getNxTk = 
+                    std::function< int(LexerImpl&, LexicToken&) >() )
         : useBlockingQueue( useBQ ), lexics( std::move(lexicData) ), rdr( stream ), 
-          bQueue( useBQ ? new gtools::BlockingQueue< LexicToken >() : nullptr )
-    { setCustomWhitespacing(); }
+          bQueue( useBQ ? new gtools::BlockingQueue< LexicToken >() : nullptr ),
+          getNextTokenPriv( std::move( getNxTk ) )
+    { setFunctions(); }
 
     void start();
     bool getNextToken( LexicToken& tok );
@@ -198,60 +215,60 @@ inline void LexerImpl::updateLineStats( char c ){
  *  - Iterates the buffer, searching for the delimiters, and at the same time 
  *    updates the statistics (line count, etc).
  */ 
-int LexerImpl::getNextTokenPriv_SimpleDelim( LexicToken& tok ){
+int LexerImpl::getNextTokenPriv_SimpleDelim( LexerImpl& lex, LexicToken& tok ){
     std::cout <<"[LexerImpl::getNextToken()]: Skipping WS...\n";
     
     // Firstly, skip all leading Whitespaces.
     while(true){
-        for( ; bufferPointer < bufferEnd; bufferPointer++ ){
-            updateLineStats( *bufferPointer );
+        for( ; lex.bufferPointer < lex.bufferEnd; lex.bufferPointer++ ){
+            lex.updateLineStats( *lex.bufferPointer );
 
-            if( getCharType( *bufferPointer ) != CHAR_WHITESPACE )
+            if( lex.getCharType( *lex.bufferPointer ) != CHAR_WHITESPACE )
                 goto _wsLoopEnd;
         }
 
-        // Buffer exhausted. Update buffer - fetch new data.
-        if( !updateBuffer() ){
-            // Update buffer returned false - the file has ended. 
+        // Buffer exhausted. Update lex.buffer - fetch new data.
+        if( !lex.updateBuffer() ){
+            // Update lex.buffer returned false - the file has ended. 
             return TOKEN_END_OF_FILE;
         }
     } 
     _wsLoopEnd:
 
-    // Increment buffer pointer, to proceed to other character after the 
-    ++bufferPointer;
+    // Increment lex.buffer pointer, to proceed to other character after the 
+    ++lex.bufferPointer;
      
-    std::cout <<"After WS skip: Buffpos: "<< (int)(bufferPointer - buffer) <<
-                ", Bufflen: "<< (int)(bufferEnd - buffer) <<
-                ", Streampos: "<< rdr.tellg() <<"\n";
+    std::cout <<"After WS skip: Buffpos: "<< (int)(lex.bufferPointer - lex.buffer) <<
+                ", Bufflen: "<< (int)(lex.bufferEnd - lex.buffer) <<
+                ", Streampos: "<< lex.rdr.tellg() <<"\n";
     
-    // At this point, the buffer pointer points to a non-whitespace character.
+    // At this point, the lex.buffer pointer points to a non-whitespace character.
     // Mark current position as token start, and go on to the next character.
-    const char* tokenStart = bufferPointer;
-    ++bufferPointer;
+    const char* tokenStart = lex.bufferPointer;
+    ++lex.bufferPointer;
 
     while( true ) {
-        for( ; bufferPointer < bufferEnd; bufferPointer++ ){
-            updateLineStats( *bufferPointer );
+        for( ; lex.bufferPointer < lex.bufferEnd; lex.bufferPointer++ ){
+            lex.updateLineStats( *lex.bufferPointer );
 
             // Get type of current character.
-            int charType = getCharType( *bufferPointer );
+            int charType = lex.getCharType( *lex.bufferPointer );
 
             // Check if delimiter. Ignorable(Whitespace) is ALWAYS a delimiter.
             // We know that Token is not empty - perform regex-search on the current token.
             if( charType != CHAR_TOKEN )
             {
-                std::cout <<" Delimiter \'"<< *bufferPointer 
-                          <<"\' found at pos "<< bufferPointer-tokenStart <<"\n"
+                std::cout <<" Delimiter \'"<< *lex.bufferPointer 
+                          <<"\' found at pos "<< lex.bufferPointer-tokenStart <<"\n"
                           <<" Searching for rule regex match... \n";
 
-                for( auto&& rule : lexics.rules ){
+                for( auto&& rule : lex.lexics.rules ){
                     // If current token matches regex, fill up the LexicToken, and true.
-                    if( std::regex_match( tokenStart, (const char*)(bufferPointer-1), 
+                    if( std::regex_match( tokenStart, (const char*)(lex.bufferPointer-1), 
                         rule.regex ) )
                     {
                         tok.id = rule.getID();
-                        tok.data = std::string(tokenStart, (const char*)(bufferPointer-1));
+                        tok.data = std::string(tokenStart, (const char*)(lex.bufferPointer-1));
 
                         // Woohoo! Found a valid token!
                         std::cout<< " MATCH FOUND! ID: "<< tok.id <<"\n\n"; 
@@ -260,7 +277,7 @@ int LexerImpl::getNextTokenPriv_SimpleDelim( LexicToken& tok ){
                 }
 
                 // No match found - invalid token.
-                tok.data = std::string( tokenStart, (const char*)(bufferPointer-1) );
+                tok.data = std::string( tokenStart, (const char*)(lex.bufferPointer-1) );
                 tok.id = LexicToken::INVALID_TOKEN;
 
                 std::cout<<" No match was found! Token invalid!\n\n";
@@ -268,23 +285,23 @@ int LexerImpl::getNextTokenPriv_SimpleDelim( LexicToken& tok ){
             }
         }
 
-        size_t toksize = (size_t)( bufferEnd - tokenStart );
+        size_t toksize = (size_t)( lex.bufferEnd - tokenStart );
 
-        // Check if token is too long (more than 75% of buffer's size.)
+        // Check if token is too long (more than 75% of lex.buffer's size.)
         if( toksize >= (int)((double)BUFFER_SIZE * 0.75) )
             break;
-        // If not, reallocate memory and update buffer.
+        // If not, reallocate memory and update lex.buffer.
         else{
-            std::memmove( buffer, tokenStart, toksize );
-            tokenStart = buffer;
+            std::memmove( lex.buffer, tokenStart, toksize );
+            tokenStart = lex.buffer;
         }
 
         // Buffer is exhausted, and token is still incomplete.
         // If stream has ended, finish token by explicitly inserting a whitespace.
-        if( !updateBuffer( toksize ) ){
-            buffer[0] = ( lexics.useCustomWhitespaces ? lexics.ignorables[0] : ' ' );
-            bufferPointer = buffer;
-            bufferEnd = buffer+1;
+        if( !lex.updateBuffer( toksize ) ){
+            lex.buffer[0] = ( lex.lexics.useCustomWhitespaces ? lex.lexics.ignorables[0] : ' ' );
+            lex.bufferPointer = lex.buffer;
+            lex.bufferEnd = lex.buffer+1;
         }
     } 
 
@@ -293,49 +310,49 @@ int LexerImpl::getNextTokenPriv_SimpleDelim( LexicToken& tok ){
 
 /*! Main backend function for the universal, RegEx'd tokenizing.
  *  Does all the true job of getting the tokens.
- *  - Iterates the buffer, getting characters one by one, and checking if current string
+ *  - Iterates the lex.buffer, getting characters one by one, and checking if current string
  *    matches at least one regex.
  *  - Main disadvantage - the time is exponential depending on token's lenght,
  *    in other words, O(n^m), where 
  *    - m is lenght of the token,
  *    - n is the count of rules.
  */ 
-int LexerImpl::getNextTokenPriv_Regexed( LexicToken& tok ){
+int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
     std::cout <<"[LexerImpl::getNextTokenPriv_Regexed()]: Skipping WS...\n";
     
     // Firstly, skip all leading Whitespaces.
     while(true){
-        for( ; bufferPointer < bufferEnd; bufferPointer++ ){
-            updateLineStats( *bufferPointer );
+        for( ; lex.bufferPointer < lex.bufferEnd; lex.bufferPointer++ ){
+            lex.updateLineStats( *lex.bufferPointer );
 
-            if( getCharType( *bufferPointer ) != CHAR_WHITESPACE )
+            if( lex.getCharType( *lex.bufferPointer ) != CHAR_WHITESPACE )
                 goto _wsLoopEnd;
         }
 
-        // Buffer exhausted. Update buffer - fetch new data.
-        if( !updateBuffer() ){
-            // Update buffer returned false - the file has ended. 
+        // Buffer exhausted. Update lex.buffer - fetch new data.
+        if( !lex.updateBuffer() ){
+            // Update lex.buffer returned false - the file has ended. 
             return TOKEN_END_OF_FILE;
         }
     } 
     _wsLoopEnd:
 
-    // Increment buffer pointer, to proceed to other character after the 
-    ++bufferPointer;
+    // Increment lex.buffer pointer, to proceed to other character after the 
+    ++lex.bufferPointer;
      
-    std::cout <<"After WS skip: Buffpos: "<< (int)(bufferPointer - buffer) <<
-                ", Bufflen: "<< (int)(bufferEnd - buffer) <<
-                ", Streampos: "<< rdr.tellg() <<"\n";
+    std::cout <<"After WS skip: Buffpos: "<< (int)(lex.bufferPointer - lex.buffer) <<
+                ", Bufflen: "<< (int)(lex.bufferEnd - lex.buffer) <<
+                ", Streampos: "<< lex.rdr.tellg() <<"\n";
     
-    // At this point, the buffer pointer points to a non-whitespace character.
+    // At this point, the lex.buffer pointer points to a non-whitespace character.
     // Mark current position as token start, and go on to the next character.
-    const char* tokenStart = bufferPointer;
-    ++bufferPointer;
+    const char* tokenStart = lex.bufferPointer;
+    ++lex.bufferPointer;
 
     while( true ) {
-        for( ; bufferPointer < bufferEnd; bufferPointer++ ){
+        for( ; lex.bufferPointer < lex.bufferEnd; lex.bufferPointer++ ){
             // Character got. Now perform checks.
-            updateLineStats( *bufferPointer );
+            lex.updateLineStats( *lex.bufferPointer );
 
             // We don't need to check the type of current character.
             // We just need to check if current token matches at least one regex.
@@ -344,8 +361,8 @@ int LexerImpl::getNextTokenPriv_Regexed( LexicToken& tok ){
             std::cmatch results;
             int firstPartialRule = -1;
             
-            for( auto&& rule : lexics.rules ){
-                if( std::regex_search( tokenStart, (const char*)(bufferPointer), 
+            for( auto&& rule : lex.lexics.rules ){
+                if( std::regex_search( tokenStart, (const char*)(lex.bufferPointer), 
                                        results, rule.regex ) )
                 {
                     // Examine position. If position is not start, check other rules,
@@ -357,10 +374,10 @@ int LexerImpl::getNextTokenPriv_Regexed( LexicToken& tok ){
                     
                     // If position is start, it means token is fully good.
                     tok.id = rule.getID();
-                    tok.data = std::string(tokenStart, (const char*)(bufferPointer));
+                    tok.data = std::string(tokenStart, (const char*)(lex.bufferPointer));
 
                     // Woohoo! Found a valid token!
-                    std::cout <<" MATCH FOUND! At: "<< (size_t)(bufferPointer - tokenStart) 
+                    std::cout <<" MATCH FOUND! At: "<< (size_t)(lex.bufferPointer - tokenStart) 
                               <<", ID: "<< tok.id <<"\n\n"; 
                     return TOKEN_GOOD;
                 }
@@ -368,25 +385,25 @@ int LexerImpl::getNextTokenPriv_Regexed( LexicToken& tok ){
 
             // Partial match was found. It means there were illegal characters on a token.
             if( firstPartialRule >= 0 ){
-                tok.id = rule.getID();
-                tok.data = std::string(tokenStart, (const char*)(bufferPointer));
+                tok.id = firstPartialRule;
+                tok.data = std::string(tokenStart, (const char*)(lex.bufferPointer));
 
                 // Woohoo! Found a valid token!
-                std::cout <<" MATCH FOUND! At: "<< (size_t)(bufferPointer - tokenStart) 
+                std::cout <<" MATCH FOUND! At: "<< (size_t)(lex.bufferPointer - tokenStart) 
                           <<", ID: "<< tok.id <<"\n\n"; 
                 return TOKEN_PARTIAL; 
             }
         }
 
-        // Check if token is too long (more than 75% of buffer's size.)
-        size_t toksize = (size_t)( bufferEnd - tokenStart );
+        // Check if token is too long (more than 75% of lex.buffer's size.)
+        size_t toksize = (size_t)( lex.bufferEnd - tokenStart );
 
         if( toksize >= (int)((double)BUFFER_SIZE * 0.75) )
             break;
-        // If not, reallocate memory and update buffer.
+        // If not, reallocate memory and update lex.buffer.
         else{
-            std::memmove( buffer, tokenStart, toksize );
-            tokenStart = buffer;
+            std::memmove( lex.buffer, tokenStart, toksize );
+            tokenStart = lex.buffer;
         }
     } 
 
@@ -411,7 +428,7 @@ void LexerImpl::start(){
     while( 1 ){
         // Allocate a new token.
         LexicToken tok;
-        int tt = getNextTokenPriv( tok );
+        int tt = getNextTokenPriv( *this, tok );
 
         // If good, put to queue.
         if(tt >= 0)
@@ -441,7 +458,7 @@ bool LexerImpl::getNextToken( LexicToken& tok ){
     }
     
     // If no multithreading, just directly call the private token getter.
-    int ret = getNextTokenPriv( tok );
+    int ret = getNextTokenPriv( *this, tok );
 
     // return true (have more tokens) if normal token or non-fatal error.
     return ret >= 0 && !endOfStream;
