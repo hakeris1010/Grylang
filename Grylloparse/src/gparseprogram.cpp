@@ -7,7 +7,6 @@
 const char* testLexics =
 "<ident> := \"\\w+\" ;\n"
 "<operator> := \"[;=+\\-\\*/\\[\\]{}<>%]\" ;\n"
-"<delim> := \";=+-*/[]{}()<>%\""
 ;
 //"<ignore> := \"[abc]\" ;"
 //"<regex_delim> := <operator> | \"\\w\" ;"
@@ -42,7 +41,7 @@ int main(int argc, char** argv){
 
     gparse::Lexer lexer( lexicon, pstream );
 
-    bool areMore = true;
+    bool areMore = false;
     while( areMore ){
         gparse::LexicToken tok;
         areMore = lexer.getNextToken( tok );

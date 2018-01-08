@@ -100,7 +100,7 @@ private:
     void setFunctions(){
         // Set tokenizer.
         if( !getNextTokenPriv ){
-            if( lexics.useRegexDelimiters )
+            if( lexics.tokenized )
                 getNextTokenPriv = getNextTokenPriv_Regexed ;
             else
                 getNextTokenPriv = getNextTokenPriv_SimpleDelim;
@@ -108,9 +108,19 @@ private:
 
         // If using custom whitespaces, function must check for it.
         // Whitespace IS a delimiter.
-        if( lexics.useCustomWhitespaces && !lexics.ignorables.empty() ){
+        if( lexics.useCustomWhitespaces && !lexics.whitespaces.empty() ){
             getCharType = [ & ] ( char c ) { 
-                if(lexics.ignorables.find( c ) != std::string::npos)
+                if(lexics.whitespaces.find( c ) != std::string::npos)
+                    return CHAR_WHITESPACE; 
+                //if(lexics.nonRegexDelimiters.find( c ) != std::string::npos)
+                //    return CHAR_DELIM;
+                return CHAR_TOKEN;
+            };
+        }
+        else if( lexics.useRegexWhitespaces ){
+            getCharType = [ & ] ( char c ) { 
+                if( std::regex_match( (const char*)&c, (const char*)&c, 
+                                      lexics.regexWhitespaces.regex ) )
                     return CHAR_WHITESPACE; 
                 //if(lexics.nonRegexDelimiters.find( c ) != std::string::npos)
                 //    return CHAR_DELIM;
@@ -216,7 +226,7 @@ inline void LexerImpl::updateLineStats( char c ){
  *    updates the statistics (line count, etc).
  */ 
 int LexerImpl::getNextTokenPriv_SimpleDelim( LexerImpl& lex, LexicToken& tok ){
-    std::cout <<"[LexerImpl::getNextToken()]: Skipping WS...\n";
+    std::cout <<"[LexerImpl::getNextTokenPriv_SimpleDelim()]: Skipping WS...\n";
     
     // Firstly, skip all leading Whitespaces.
     while(true){
@@ -299,7 +309,7 @@ int LexerImpl::getNextTokenPriv_SimpleDelim( LexerImpl& lex, LexicToken& tok ){
         // Buffer is exhausted, and token is still incomplete.
         // If stream has ended, finish token by explicitly inserting a whitespace.
         if( !lex.updateBuffer( toksize ) ){
-            lex.buffer[0] = ( lex.lexics.useCustomWhitespaces ? lex.lexics.ignorables[0] : ' ' );
+            lex.buffer[0] = ( lex.lexics.useCustomWhitespaces ? lex.lexics.whitespaces[0] : ' ' );
             lex.bufferPointer = lex.buffer;
             lex.bufferEnd = lex.buffer+1;
         }

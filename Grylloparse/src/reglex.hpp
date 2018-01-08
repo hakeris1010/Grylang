@@ -70,12 +70,15 @@ struct RegLexData{
     // Otherwise, regex defines delimiters.
     RegLexRule regexDelimiters; 
 
-    // Custom whitespace (ignoreable) characters.
-    std::string ignorables;
+    // Custom whitespace (ignoreable) characters. Array-type.
+    std::string whitespaces;
+
+    // Custom whitespace (ignoreable) characters. Array-type.
+    RegLexRule regexWhitespaces;
 
     // Language Lexics properties.
-    bool useRegexDelimiters = true; 
     bool useCustomWhitespaces = false;
+    bool useRegexWhitespaces = false;
     bool tokenized = true;
 
     /*! Full-data constructors.
@@ -83,14 +86,15 @@ struct RegLexData{
     RegLexData();
     RegLexData( std::initializer_list< RegLexRule >&& _rules, 
                 bool useRegDels = true,
-                const std::string& nonRegDels = std::string(),
-                const std::regex& regDels = std::regex(),
-                const std::string& ignors = std::string() )
-        : rules( std::move(_rules) ), nonRegexDelimiters( nonRegDels ),
-          regexDelimiters( 0, regDels ), ignorables( ignors ),
-          useRegexDelimiters( useRegDels ),
+                const std::string& nonRegDs = std::string(),
+                const std::regex& regDels   = std::regex(),
+                const std::string& ignors   = std::string(),
+                const std::regex& ignorReg  = std::regex() )
+        : rules( std::move(_rules) ), nonRegexDelimiters( nonRegDs ),
+          regexDelimiters( 0, regDels ), whitespaces( ignors ), regexWhitespaces( 0, ignorReg )
+          /*useRegexDelimiters( useRegDels ),
           useCustomWhitespaces( ignors.empty() ),
-          tokenized( useRegDels || !nonRegDels.empty() )
+          tokenized( useRegDels || !nonRegDels.empty() )*/
     {}
 
     RegLexData( std::initializer_list< RegLexRule >&& _rules, 
@@ -99,10 +103,10 @@ struct RegLexData{
                 std::regex&& regDels = std::regex(),
                 std::string&& ignors = std::string() )
         : rules( std::move(_rules) ), nonRegexDelimiters( std::move(nonRegDels) ),
-          regexDelimiters( 0, std::move(regDels) ), ignorables( std::move(ignors) ),
-          useRegexDelimiters( useRegDels ),
+          regexDelimiters( 0, std::move(regDels) ), whitespaces( std::move(ignors) )
+          /*useRegexDelimiters( useRegDels ),
           useCustomWhitespaces( ignors.empty() ),
-          tokenized( useRegDels || !nonRegDels.empty() )
+          tokenized( useRegDels || !nonRegDels.empty() )*/
     {} 
 
     /*! Generator constructor - GBNF-style to RegLex.
