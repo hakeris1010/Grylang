@@ -1,8 +1,8 @@
 #include "reglex.hpp"
 #include <iostream>
+#include <map>
 
 namespace gparse{
-
 
 /*! Recursively collects the string segments into one Regex,
  *  traversing the grammar tokens.
@@ -70,41 +70,54 @@ static bool collectRegexStringFromGTokens_priv( const gbnf::GbnfData& data,
     return true;
 }
 
+static inline bool setSpecialRegexRules( RegLexData& rl, 
+    const SpecialTags& tags, int gRuleID, const std::string& regexString )
+{
+    // Find the regex whitespace rule. Assign special rule, and remove from table.
+    if( regexIgnoreTag != (size_t)(-1) ){
+        auto&& regWsIter = rl.rules.find( RegLexRule(regexIgnoreTag) );
+        if( regWsIter != rl.rules.end() )
+            rl.regexWhitespaces = *regWsIter; // Assign rule from the one on table.
+        else
+            throw std::runtime_error("[RegLexData(GbnfData)]: <delim_regex> rule is not present."); 
+        //rl.rules.erase( RegLexRule(regexIgnoreTag) );
+        rl.rules.erase( regWsIter );
+
+        rl.useCustomWhitespaces = true; 
+    } 
+}
+
 /*! Function checks if assigned GBNF-type grammar is supported.
  *  @throws an exception if grammar contain wrong rules/tokens.
  */ 
 static inline void checkAndAssignLexicProperties( RegLexData& rl, 
         const gbnf::GbnfData& gdata, bool useStringRepresentations )
 {
-    // Find delimiters and whitespaces
-    size_t regexIgnoreTag = (size_t)(-1);
-    size_t sDelimTag = (size_t)(-1);
-    size_t ignoreTag = (size_t)(-1);
-
+    // Find the specification declarations.
+    std::map< std::string, size_t > specTags;
+    
+    // Tags to be ignored in the regex collection.
     std::set<int> ignoredTags;
 
     for( auto&& nt : gdata.tagTableConst() ){
-        if( nt.data == "regex_ignore" ){
-            regexIgnoreTag = nt.getID();
+        // Check if special tag. If yes, add to the specials map for later processing.
+        for( auto&& it : RegLexData::SpecialTags ){
+            if( it->second == nt.data )
+                specTags.insert( std::pair<std::string, size_t>( it->first, nt.getID() ) );
         }
-        if( nt.data == "delim" ){
-            sDelimTag = nt.getID();
-        } 
-        if( nt.data == "ignore" ){
-            ignoreTag = nt.getID();
-        } 
     }
 
-    // If both regex and simple whitespaces are defined, error.
-    if( (regexIgnoreTag != (size_t)(-1) && ignoreTag != (size_t)(-1)) )
-        throw std::runtime_error("[RegLexData(GbnfData)]: " \
-            "<ignore> and <regex_ignore> tags are both defined.");
+    // If both regex and simple whitespaces are defined . . .  
+    if( (regexIgnoreTag != (size_t)(-1) && ignoreTag != (size_t)(-1)) ){
+        //throw std::runtime_error("[RegLexData(GbnfData)]: " \
+        //    "<ignore> and <regex_ignore> tags are both defined.");
+    }
 
     // --- Set Non-Regex (Simple) special rules --- //
 
     // If using delimiters (simple character array), just assign data string.
     // Only STRING type token can define non-regex delimiters.
-    if( sDelimTag != (size_t)(-1) ){
+    /*if( sDelimTag != (size_t)(-1) ){
         auto&& sDelimRule = gdata.getRule( sDelimTag );
 
         if( sDelimRule != gdata.grammarTableConst().end() &&
@@ -117,11 +130,11 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
         else
             throw std::runtime_error("[RegLexData(GbnfData)]: <delim> rule is not present."); 
         rl.tokenized = true;
-    }
+    }*/
 
     // If ignorable tag was found, assign ignoreables string.
     // Ignorables can't be regex by nature, it's a list of whitespace chars.
-    if( ignoreTag != (size_t)(-1) ){
+    /*if( ignoreTag != (size_t)(-1) ){
         auto&& ignoreRule = gdata.getRule( ignoreTag );
 
         if( ignoreRule != gdata.grammarTableConst().end() &&
@@ -134,12 +147,16 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
         else
             throw std::runtime_error("[RegLexData(GbnfData)]: <ignore> rule is not present."); 
         rl.useCustomWhitespaces = true;
-    }
+    }*/
 
     // Collect the regexes for each rule.
+    // Construct a final regex, which will be used in lexer-tokenizing the language.
     for( auto&& rule : gdata.grammarTableConst() ){
         std::string regstr;
         if( collectRegexStringFromGTokens_priv( gdata, regstr, rule, ignoredTags ) ){
+            // Check if ID is special.
+            if( 
+
             if( !useStringRepresentations )
                 rl.rules.insert( RegLexRule(rule.getID(), std::regex( std::move(regstr) )) );
             else
@@ -148,20 +165,7 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
         }
     }
 
-    // --- Set Regexed special rules --- //
-
-    // Find the regex delimiter rule. Assign special rule, and remove from table.
-    if( regexIgnoreTag != (size_t)(-1) ){
-        auto&& regWsIter = rl.rules.find( RegLexRule(regexIgnoreTag) );
-        if( regWsIter != rl.rules.end() )
-            rl.regexWhitespaces = *regWsIter; // Assign rule from the one on table.
-        else
-            throw std::runtime_error("[RegLexData(GbnfData)]: <delim-regex> rule is not present."); 
-        //rl.rules.erase( RegLexRule(regexIgnoreTag) );
-        rl.rules.erase( regWsIter );
-
-        rl.useRegexWhitespaces = true; 
-    }
+    
 }
 
 /*! RegLexData constructor from GBNF grammar.

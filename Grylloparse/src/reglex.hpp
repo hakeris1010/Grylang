@@ -4,6 +4,7 @@
 #include <string>
 #include <regex>
 #include <set>
+#include <map>
 #include <ostream>
 #include <gbnf/gbnf.hpp>
 
@@ -16,21 +17,27 @@ namespace gparse{
 
 struct RegLexRule{
 private:
+    bool ready = false;
     size_t id; 
+
 public:
     std::regex regex;
-    std::string regexStringRepr;
+    std::string stringRepr;
 
     RegLexRule(){}
     RegLexRule(size_t _id, const std::regex& _reg = std::regex(), 
                const std::string& stringRepr = std::string() ) 
-        : id( _id ), regex( _reg ), regexStringRepr( stringRepr ) 
+        : id( _id ), regex( _reg ), regexStringRepr( stringRepr ), 
+          ready( true ) 
     {}
     RegLexRule(size_t _id, std::regex&& _reg, std::string&& stringRepr = std::string()) 
-        : id( _id ), regex( std::move(_reg) ), regexStringRepr( std::move(stringRepr) ) 
+        : id( _id ), regex( std::move(_reg) ), regexStringRepr( std::move(stringRepr) ), 
+          ready( true ) 
     {}
 
     size_t getID() const { return id; }
+    bool isReady() const { return ready; }
+    void setReady( bool val = true ){ ready = val; }
 
     bool operator< (const RegLexRule& other) const {
         return id < other.id;
@@ -60,55 +67,52 @@ public:
  *        3. Use a unified Lexer-Parser (related to #2).
  */ 
 struct RegLexData{
+    // Special tags to check when constructing from the GBNF.
+    
+    const std::map< std::string, std::string > SpecialRecursiveTags( {
+        std::pair<std::string, std::string> ( "regex_ignore", "regex_ignore" )
+    } ); 
+     
+    const std::map< std::string, std::string > SpecialBasicTags( {
+        std::pair<std::string, std::string> ( "delim", "delim" ),
+        std::pair<std::string, std::string> ( "ignore", "ignore" )
+    } );
+
+    const std::map< std::string, std::string > SpecialPropertyTags(); 
+
     // The regexes which define tokens.
     std::set< RegLexRule > rules;
 
-    // If tokenized and not using regex delimiters, 
-    // delimiters are chars of this string.
-    std::string nonRegexDelimiters;
+    // Final Regex which encompasses all the rules.
+    RegLexRule fullLanguageRegex;
 
-    // Otherwise, regex defines delimiters.
-    RegLexRule regexDelimiters; 
-
-    // Custom whitespace (ignoreable) characters. Array-type.
-    std::string whitespaces;
-
-    // Custom whitespace (ignoreable) characters. Array-type.
+    // Array which maps regex group indexes in the final regex,
+    // to corresponding Token Type IDs.
+    std::vector<int> tokenTypeIDs;
+    
+    // Custom whitespace (ignoreable) characters, Regex-Type.
     RegLexRule regexWhitespaces;
 
     // Language Lexics properties.
     bool useCustomWhitespaces = false;
-    bool useRegexWhitespaces = false;
-    bool tokenized = true;
+    bool useFallbackErrorRule = true;
 
     /*! Full-data constructors.
      */ 
     RegLexData();
     RegLexData( std::initializer_list< RegLexRule >&& _rules, 
-                bool useRegDels = true,
-                const std::string& nonRegDs = std::string(),
-                const std::regex& regDels   = std::regex(),
-                const std::string& ignors   = std::string(),
-                const std::regex& ignorReg  = std::regex() )
-        : rules( std::move(_rules) ), nonRegexDelimiters( nonRegDs ),
-          regexDelimiters( 0, regDels ), whitespaces( ignors ), regexWhitespaces( 0, ignorReg )
-          /*useRegexDelimiters( useRegDels ),
-          useCustomWhitespaces( ignors.empty() ),
-          tokenized( useRegDels || !nonRegDels.empty() )*/
+                RegLexRule&& fullRegex            = RegLexRule(),
+                std::vector<int>&& tokTypeIdMap   = std::vector<int>(),
+                RegLexRule&& regCustomWhitespaces = RegLexRule(),
+                bool _useFallbackErrorRule = true )
+          : rules( std::move( _rules ) ), 
+            fullLanguageRegex( std::move( fullRegex ) ),
+            tokenTypeIDs( std::move( tokTypeIdMap ) ),
+            regexCustomWhitespaces( std::move( regCustomWhitespaces ) ),
+            useCustomWhitespaces( regCustomWhitespaces.isReady() ),
+            useFallbackErrorRule( _useFallbackErrorRule )
     {}
-
-    RegLexData( std::initializer_list< RegLexRule >&& _rules, 
-                bool useRegDels = true,
-                std::string&& nonRegDels = std::string(),
-                std::regex&& regDels = std::regex(),
-                std::string&& ignors = std::string() )
-        : rules( std::move(_rules) ), nonRegexDelimiters( std::move(nonRegDels) ),
-          regexDelimiters( 0, std::move(regDels) ), whitespaces( std::move(ignors) )
-          /*useRegexDelimiters( useRegDels ),
-          useCustomWhitespaces( ignors.empty() ),
-          tokenized( useRegDels || !nonRegDels.empty() )*/
-    {} 
-
+                
     /*! Generator constructor - GBNF-style to RegLex.
      *  - Inputs a language lexicon - defining GBNF grammar,
      *    and converts in to RegLex grammar.
