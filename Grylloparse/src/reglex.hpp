@@ -67,19 +67,6 @@ public:
  *        3. Use a unified Lexer-Parser (related to #2).
  */ 
 struct RegLexData{
-    // Special tags to check when constructing from the GBNF.
-    
-    const std::map< std::string, std::string > SpecialRecursiveTags( {
-        std::pair<std::string, std::string> ( "regex_ignore", "regex_ignore" )
-    } ); 
-     
-    const std::map< std::string, std::string > SpecialBasicTags( {
-        std::pair<std::string, std::string> ( "delim", "delim" ),
-        std::pair<std::string, std::string> ( "ignore", "ignore" )
-    } );
-
-    const std::map< std::string, std::string > SpecialPropertyTags(); 
-
     // The regexes which define tokens.
     std::set< RegLexRule > rules;
 
