@@ -84,6 +84,9 @@ struct RegLexData{
     bool useCustomWhitespaces = false;
     bool useFallbackErrorRule = true;
 
+    size_t errorRuleIndex;
+    size_t spaceRuleIndex;
+
     /*! Full-data constructors.
      */ 
     RegLexData();

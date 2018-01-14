@@ -12,7 +12,7 @@ class SpecialTag{
 private:
     std::string name;
     int type;
-    std::function< int( RegLexData&, int, std::string&&, int, void* ) > processor;
+    std::function< int( RegLexData&, const gbnf::GbnfData&, int, std::string&&, int, void* ) > processor;
 
 public:
     // Valid special tag types. The execution time and place depends on the type.
@@ -31,7 +31,7 @@ public:
     const static int COND_ALL_RULES_READY = 3;
         
     SpecialTag( std::string&& _name, int _type,
-        std::function< int(RegLexData&, int, std::string&&, int, void*) >&& proc )
+        std::function< int(RegLexData&, const gbnf::GbnfData&, int, std::string&&, int, void*) >&& proc )
         : name( std::move( _name ) ), 
           type( _type ),
           processor( std::move(proc) )
@@ -40,9 +40,9 @@ public:
     const std::string& getName() const { return name; }
     int getType() const { return type; }
 
-    int process( RegLexData& reg, int id, std::string&& str, 
-                 int callCoditions, void* param = nullptr ) const {
-        return processor( reg, id, str, callConditions, param );
+    int process( RegLexData& reg, const gbnf::GbnfData& gdata, int id, 
+        std::string&& str, int callCoditions, void* param = nullptr ) const {
+        return processor( reg, gdata, id, str, callConditions, param );
     }
 
     bool operator== (const SpecialTag& other) const {
@@ -61,30 +61,37 @@ public:
 static const std::set< SpecialTag > SpecialTags({
     // The custom whitespaces control tag.
     SpecialTag( "regex_ignore", SpecialTag::TYPE_RECURSIVE_REGEX,
-        []( RegLexData& rl, int id, std::string&& str, int callCondition, void* param ) {
-            auto&& regWsIter = rl.rules.find( RegLexRule(regexIgnoreTag) );
-            if( regWsIter != rl.rules.end() )
-                rl.regexWhitespaces = *regWsIter; // Assign rule from the one on table.
-            else
-                throw std::runtime_error("[RegLexData(GbnfData)]: \
-                            <delim_regex> rule is not present."); 
-            //rl.rules.erase( RegLexRule(regexIgnoreTag) );
-            rl.rules.erase( regWsIter );
-
+        []( RegLexData& rl, const gbnf::GbnfData& gdata, int id, 
+            std::string&& str, int callCondition, void* param ) -> int
+        {
             rl.useCustomWhitespaces = true; 
-
-            return SpecialTag::RET_DELETE_REGLEX_RULE;
+            if( callCodition == SpecialTag::COND_CALL_IN_RULE_RESOLVE_LOOP ){
+                rl.regexWhitespaces = RegLexRule( 0, std::regex( str ), str );
+                return SpecialTag::RET_DELETE_REGLEX_RULE;
+            }
+            else{
+                auto&& regWsIter = rl.rules.find( RegLexRule( id ) );
+                if( regWsIter != rl.rules.end() )
+                    rl.regexWhitespaces = *regWsIter; // Assign rule from the one on table.
+                else
+                    throw std::runtime_error("[RegLexData(GbnfData)]: \
+                                <delim_regex> rule is not present."); 
+                rl.rules.erase( regWsIter );
+            }
+            return SpecialTag::RET_DO_NOTHING;
         } ),
 
     // Non-Regex (Simple string) data type rules.
     // By now, do nothing, because these properties are not yet implemented.
     SpecialTag( "delim", SpecialTag::TYPE_NON_REGEX,
-        []( RegLexData& rl, int id, std::string&& str, void* param ) -> int{
+        []( RegLexData& rl, const gbnf::GbnfData&, int id, 
+            std::string&& str, int, void* param ) -> int{
             return SpecialTag::RET_DO_NOTHING;
         } ),
 
     SpecialTag( "ignore", SpecialTag::TYPE_NON_REGEX,
-        []( RegLexData& rl, int id, std::string&& str, void* param ) -> int{
+        []( RegLexData& rl, const gbnf::GbnfData&, int id, 
+            std::string&& str, int, void* param ) -> int{
             return SpecialTag::RET_DO_NOTHING;
         } )
 });
@@ -155,43 +162,37 @@ static bool collectRegexStringFromGTokens_priv( const gbnf::GbnfData& data,
     return true;
 }
 
-static inline bool setSpecialRegexRules( RegLexData& rl, 
-    const SpecialTags& tags, int gRuleID, const std::string& regexString )
-{
-    // Find the regex whitespace rule. Assign special rule, and remove from table.
-    if( regexIgnoreTag != (size_t)(-1) ){
-         
-    } 
-}
-
 /*! Function checks if assigned GBNF-type grammar is supported.
  *  @throws an exception if grammar contain wrong rules/tokens.
  */ 
 static inline void checkAndAssignLexicProperties( RegLexData& rl, 
-        const gbnf::GbnfData& gdata, bool useStringRepresentations )
+        const gbnf::GbnfData& gdata, bool useStringRepresentations = true, 
+        bool constructIndividualRules = false )
 {
     // Find the specification declarations.
-    std::map< int, SpecialTag > nonRegexSpecTags;
-    std::map< int, SpecialTag > regexSpecTags;
+    std::map< int, const SpecialTag& > nonRegexSpecTags;
+    std::map< int, const SpecialTag& > regexSpecTags;
     
     // Tags to be ignored in the regex collection.
     std::set<int> ignoredTags;
 
     for( auto&& nt : gdata.tagTableConst() ){
         // Check if special tag. If yes, add to the specials map for later processing.
-        for( auto&& it : SpecialTags ){
-            if( it->second == nt.data )
-                specTags.insert( std::pair<std::string, size_t>( it->first, nt.getID() ) );
+        auto&& specTag = SpecialTags.find( nt.data );
+        if( specTag != SpecialTags.end() ){
+            if( specTag->getType() == SpecialTag::TYPE_NON_REGEX )
+                nonRegexSpecTags.insert( std::pair<>( nt.getID(), *specTag ) );
+            else if( specTag->getType() == SpecialTag::TYPE_RECURSIVE_REGEX )
+                regexSpecTags.insert( std::pair<>( nt.getID(), *specTag ) ); 
         }
     }
 
-    // If both regex and simple whitespaces are defined . . .  
-    if( (regexIgnoreTag != (size_t)(-1) && ignoreTag != (size_t)(-1)) ){
-        //throw std::runtime_error("[RegLexData(GbnfData)]: " \
-        //    "<ignore> and <regex_ignore> tags are both defined.");
-    }
-
     // --- Set Non-Regex (Simple) special rules --- //
+    
+    for( auto&& a : nonRegexSpecTags ){
+        a.second->process( rl, gdata, a.first, std::string(), 
+            SpecialTag::COND_BEFORE_RULE_RESOLVE_LOOP, nullptr );
+    }
 
     // If using delimiters (simple character array), just assign data string.
     // Only STRING type token can define non-regex delimiters.
@@ -229,22 +230,65 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
 
     // Collect the regexes for each rule.
     // Construct a final regex, which will be used in lexer-tokenizing the language.
+    std::string finalRegex;
+    finalRegex.reserve( gdata.grammarTableConst().size() * 12 );
+
     for( auto&& rule : gdata.grammarTableConst() ){
         std::string regstr;
         if( collectRegexStringFromGTokens_priv( gdata, regstr, rule, ignoredTags ) ){
+            // Check if current ID is of a special tag. If so, perform operations.
             auto&& specTag = regexSpecTags.find( rule.getID() );
             if( specTag != regexSpecTags.end() ){
-                if( specTag->process( ) == SpecialTag::RET_DELETE_REGLEX_RULE )
+                if( specTag->process(rl, gdata, rule.getID(), regstr, 
+                    SpecialTag::COND_CALL_IN_RULE_RESOLVE_LOOP, nullptr ) 
+                    == SpecialTag::RET_DELETE_REGLEX_RULE )
                     continue;
             }
 
-            if( !useStringRepresentations )
-                rl.rules.insert( RegLexRule(rule.getID(), std::regex( std::move(regstr) )) );
-            else
-                rl.rules.insert( RegLexRule( rule.getID(), std::regex( regstr ),  \
-                                             std::move(regstr) ) );
+            // Add current regex to the Final Regex String.
+            if( !constructIndividualRules ){
+                finalRegex.append( "(" );
+                finalRegex.append( std::move(regstr) );
+                finalRegex.append( ")|" );
+            }
+
+            // Add the rule, if specified.
+            else{ // constructIndividualRules 
+                finalRegex += "(" + regstr + ")|";
+
+                if( !useStringRepresentations )
+                    rl.rules.insert(RegLexRule(rule.getID(), std::regex(std::move(regstr))));
+                else
+                    rl.rules.insert( RegLexRule( rule.getID(), std::regex( regstr ),  \
+                                                 std::move(regstr) ) );
+            }
+
+            // Add current ID to the ID map.
+            tokenTypeIDs.push_back( rule.getID() );
         }
     }
+
+    // Complete the full regex.
+    // Add a whitespace rule's capt. group. If we use custom whitespaces, add them.
+    // If standard WS, use the \s regex.
+    finalRegex.push_back( '(' );
+    if( rl.useCustomWhitespaces )
+        finalRegex.append( rl.regexWhitespaces.stringRepr );
+    else
+        finalRegex.append( "\\s+" ); 
+    finalRegex.push_back( ')' );
+
+    spaceRuleIndex = tokenTypeIDs.size();
+
+    // If using error fallback rule, add an additional group for catching everything else.
+    if( useErrorFallbackRule ){
+        finalRegex.append( "|(.)" );
+        errorRuleIndex = spaceRuleIndex + 1;
+    }
+
+    // Assign the final full regex.
+    rl.fullLanguageRegex.regex( finalRegex );
+    rl.fullLanguageRegex.stringRepe( std::move( finalRegex ) );
 }
 
 /*! RegLexData constructor from GBNF grammar.
@@ -255,17 +299,31 @@ RegLexData::RegLexData( const gbnf::GbnfData& data, bool useStringReprs ){
 
 void RegLexData::print( std::ostream& os ) const {
     os << "RegLexData:\n";
-    if(!nonRegexDelimiters.empty())
-        os << " nonRegexDelimiters: "<< nonRegexDelimiters <<"\n";
-    if(!whitespaces.empty())
-        os << " whitespaces: "<< whitespaces <<"\n";
-    if(useRegexWhitespaces || !regexWhitespaces.regexStringRepr.empty())
-        os << " regexWhitespaces: "<< regexWhitespaces.regexStringRepr <<"\n"; 
+    // Bools
+    os << " useCustomWhitespaces: "<< useCustomWhitespaces <<"\n"; 
+    os << " useFallbackErrorRule: "<< useFallbackErrorRule <<"\n"; 
+
+    // Actual properties.
+    if( useCustomWhitespaces )
+        os << " regexWhitespaces: "<< regexWhitespaces.stringRepr <<"\n"; 
+
+    if( fullLanguageRegex.stringRepr.size() > 100 )
+        os <<" fullLanguageRegex: "<< fullLanguageRegex.stringRepr.size() <<" chars.\n";
+    else
+        os <<" fullLanguageRegex: "<< fullLanguageRegex.stringRepr <<"\n";
+
+    if( !tokenTypeIDs.empty() ){
+        os <<" Final regex group ID Map: \n  ";
+        for( auto i = 0; i < tokenTypeIDs.size(); i++ ){
+            os << "["<< i <<" -> "<< tokenTypeIDs[ i ] <<"] ";
+        }
+        os <<"\n";
+    }
      
     if(!rules.empty()){
         os<<" Rules:\n  ";
         for( auto&& a : rules ){
-            os << a.getID() <<" -> "<< a.regexStringRepr <<"\n  ";
+            os << a.getID() <<" -> "<< a.stringRepr <<"\n  ";
         }
     }
 }
