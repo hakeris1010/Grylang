@@ -26,13 +26,12 @@ public:
 
     RegLexRule(){}
     RegLexRule(size_t _id, const std::regex& _reg = std::regex(), 
-               const std::string& stringRepr = std::string() ) 
-        : id( _id ), regex( _reg ), regexStringRepr( stringRepr ), 
-          ready( true ) 
+               const std::string& _stringRepr = std::string() ) 
+        : ready( true ), id( _id ), regex( _reg ), stringRepr( _stringRepr ) 
     {}
-    RegLexRule(size_t _id, std::regex&& _reg, std::string&& stringRepr = std::string()) 
-        : id( _id ), regex( std::move(_reg) ), regexStringRepr( std::move(stringRepr) ), 
-          ready( true ) 
+    RegLexRule(size_t _id, std::regex&& _reg, std::string&& _stringRepr = std::string()) 
+        : ready( true ), id( _id ), regex( std::move(_reg) ), 
+          stringRepr( std::move( _stringRepr ) ) 
     {}
 
     size_t getID() const { return id; }
@@ -98,8 +97,8 @@ struct RegLexData{
           : rules( std::move( _rules ) ), 
             fullLanguageRegex( std::move( fullRegex ) ),
             tokenTypeIDs( std::move( tokTypeIdMap ) ),
-            regexCustomWhitespaces( std::move( regCustomWhitespaces ) ),
-            useCustomWhitespaces( regCustomWhitespaces.isReady() ),
+            regexWhitespaces( std::move( regCustomWhitespaces ) ),
+            useCustomWhitespaces( regexWhitespaces.isReady() ),
             useFallbackErrorRule( _useFallbackErrorRule )
     {}
                 

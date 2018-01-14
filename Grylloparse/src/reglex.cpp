@@ -12,7 +12,8 @@ class SpecialTag{
 private:
     std::string name;
     int type;
-    std::function< int( RegLexData&, const gbnf::GbnfData&, int, std::string&&, int, void* ) > processor;
+    std::function< int( RegLexData&, const gbnf::GbnfData&, int, 
+                        const std::string&, int, void* ) > processor;
 
 public:
     // Valid special tag types. The execution time and place depends on the type.
@@ -29,10 +30,14 @@ public:
     const static int COND_CALL_IN_RULE_RESOLVE_LOOP = 1;
     const static int COND_BEFORE_RULE_RESOLVE_LOOP  = 2;
     const static int COND_ALL_RULES_READY = 3;
-        
-    SpecialTag( std::string&& _name, int _type,
-        std::function< int(RegLexData&, const gbnf::GbnfData&, int, std::string&&, int, void*) >&& proc )
-        : name( std::move( _name ) ), 
+
+    SpecialTag( const std::string& _name )
+        : name( _name )
+    {}
+    SpecialTag( const std::string& _name, int _type,
+        std::function< int(RegLexData&, const gbnf::GbnfData&, int, 
+                       const std::string&, int, void*) >&& proc )
+        : name( _name ), 
           type( _type ),
           processor( std::move(proc) )
     {}
@@ -41,7 +46,7 @@ public:
     int getType() const { return type; }
 
     int process( RegLexData& reg, const gbnf::GbnfData& gdata, int id, 
-        std::string&& str, int callCoditions, void* param = nullptr ) const {
+        const std::string& str, int callConditions, void* param = nullptr ) const {
         return processor( reg, gdata, id, str, callConditions, param );
     }
 
@@ -62,10 +67,10 @@ static const std::set< SpecialTag > SpecialTags({
     // The custom whitespaces control tag.
     SpecialTag( "regex_ignore", SpecialTag::TYPE_RECURSIVE_REGEX,
         []( RegLexData& rl, const gbnf::GbnfData& gdata, int id, 
-            std::string&& str, int callCondition, void* param ) -> int
+            const std::string& str, int callCondition, void* param ) -> int
         {
             rl.useCustomWhitespaces = true; 
-            if( callCodition == SpecialTag::COND_CALL_IN_RULE_RESOLVE_LOOP ){
+            if( callCondition == SpecialTag::COND_CALL_IN_RULE_RESOLVE_LOOP ){
                 rl.regexWhitespaces = RegLexRule( 0, std::regex( str ), str );
                 return SpecialTag::RET_DELETE_REGLEX_RULE;
             }
@@ -85,13 +90,13 @@ static const std::set< SpecialTag > SpecialTags({
     // By now, do nothing, because these properties are not yet implemented.
     SpecialTag( "delim", SpecialTag::TYPE_NON_REGEX,
         []( RegLexData& rl, const gbnf::GbnfData&, int id, 
-            std::string&& str, int, void* param ) -> int{
+            const std::string& str, int, void* param ) -> int{
             return SpecialTag::RET_DO_NOTHING;
         } ),
 
     SpecialTag( "ignore", SpecialTag::TYPE_NON_REGEX,
         []( RegLexData& rl, const gbnf::GbnfData&, int id, 
-            std::string&& str, int, void* param ) -> int{
+            const std::string& str, int, void* param ) -> int{
             return SpecialTag::RET_DO_NOTHING;
         } )
 });
@@ -167,7 +172,8 @@ static bool collectRegexStringFromGTokens_priv( const gbnf::GbnfData& data,
  */ 
 static inline void checkAndAssignLexicProperties( RegLexData& rl, 
         const gbnf::GbnfData& gdata, bool useStringRepresentations = true, 
-        bool constructIndividualRules = false )
+        bool constructIndividualRules = false,
+        bool useErrorFallbackRule = true )
 {
     // Find the specification declarations.
     std::map< int, const SpecialTag& > nonRegexSpecTags;
@@ -178,19 +184,21 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
 
     for( auto&& nt : gdata.tagTableConst() ){
         // Check if special tag. If yes, add to the specials map for later processing.
-        auto&& specTag = SpecialTags.find( nt.data );
+        auto&& specTag = SpecialTags.find( SpecialTag(nt.data) );
         if( specTag != SpecialTags.end() ){
             if( specTag->getType() == SpecialTag::TYPE_NON_REGEX )
-                nonRegexSpecTags.insert( std::pair<>( nt.getID(), *specTag ) );
+                nonRegexSpecTags.insert( std::pair< int, const SpecialTag& >( \
+                                         nt.getID(), *specTag ) );
             else if( specTag->getType() == SpecialTag::TYPE_RECURSIVE_REGEX )
-                regexSpecTags.insert( std::pair<>( nt.getID(), *specTag ) ); 
+                regexSpecTags.insert( std::pair< int, const SpecialTag& >( \
+                                                 nt.getID(), *specTag ) ); 
         }
     }
 
     // --- Set Non-Regex (Simple) special rules --- //
     
     for( auto&& a : nonRegexSpecTags ){
-        a.second->process( rl, gdata, a.first, std::string(), 
+        a.second.process( rl, gdata, a.first, std::string(), 
             SpecialTag::COND_BEFORE_RULE_RESOLVE_LOOP, nullptr );
     }
 
@@ -239,7 +247,7 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
             // Check if current ID is of a special tag. If so, perform operations.
             auto&& specTag = regexSpecTags.find( rule.getID() );
             if( specTag != regexSpecTags.end() ){
-                if( specTag->process(rl, gdata, rule.getID(), regstr, 
+                if( specTag->second.process(rl, gdata, rule.getID(), regstr, 
                     SpecialTag::COND_CALL_IN_RULE_RESOLVE_LOOP, nullptr ) 
                     == SpecialTag::RET_DELETE_REGLEX_RULE )
                     continue;
@@ -264,7 +272,7 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
             }
 
             // Add current ID to the ID map.
-            tokenTypeIDs.push_back( rule.getID() );
+            rl.tokenTypeIDs.push_back( rule.getID() );
         }
     }
 
@@ -278,17 +286,17 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
         finalRegex.append( "\\s+" ); 
     finalRegex.push_back( ')' );
 
-    spaceRuleIndex = tokenTypeIDs.size();
+    rl.spaceRuleIndex = rl.tokenTypeIDs.size();
 
     // If using error fallback rule, add an additional group for catching everything else.
     if( useErrorFallbackRule ){
         finalRegex.append( "|(.)" );
-        errorRuleIndex = spaceRuleIndex + 1;
+        rl.errorRuleIndex = rl.spaceRuleIndex + 1;
     }
 
     // Assign the final full regex.
-    rl.fullLanguageRegex.regex( finalRegex );
-    rl.fullLanguageRegex.stringRepe( std::move( finalRegex ) );
+    rl.fullLanguageRegex.regex = std::regex( finalRegex );
+    rl.fullLanguageRegex.stringRepr = std::move( finalRegex );
 }
 
 /*! RegLexData constructor from GBNF grammar.
@@ -314,7 +322,7 @@ void RegLexData::print( std::ostream& os ) const {
 
     if( !tokenTypeIDs.empty() ){
         os <<" Final regex group ID Map: \n  ";
-        for( auto i = 0; i < tokenTypeIDs.size(); i++ ){
+        for( size_t i = 0; i < tokenTypeIDs.size(); i++ ){
             os << "["<< i <<" -> "<< tokenTypeIDs[ i ] <<"] ";
         }
         os <<"\n";
