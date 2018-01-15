@@ -61,6 +61,8 @@ public:
 private:
     // Mode and Lexic Data
     const bool useBlockingQueue;
+    bool useLineStats = false;
+
     const RegLexData lexics;
 
     // NO: For token extraction we'll use GrylTools's StreamReader class.
@@ -82,7 +84,6 @@ private:
     char buffer[ BUFFER_SIZE ];
     char* bufferPointer = buffer;
     const char* bufferEnd = buffer;
-     
 
     // Backend functions.
     void throwError( std::string message );
@@ -108,7 +109,7 @@ private:
 
         // If using custom whitespaces, function must check for it.
         // Whitespace IS a delimiter.
-        if( lexics.useCustomWhitespaces && lexics.regexWhitespaces.ready() ){
+        /*if( lexics.useCustomWhitespaces && lexics.regexWhitespaces.ready() ){
             getCharType = [ & ] ( char c ) { 
                 if(lexics.whitespaces.find( c ) != std::string::npos)
                     return CHAR_WHITESPACE; 
@@ -136,7 +137,7 @@ private:
                 //    return CHAR_DELIM;
                 return CHAR_TOKEN; 
             };
-        }
+        }*/
     }
 
     static int getNextTokenPriv_SimpleDelim( LexerImpl& lex, LexicToken& tok );
@@ -320,90 +321,38 @@ int LexerImpl::getNextTokenPriv_SimpleDelim( LexerImpl& lex, LexicToken& tok ){
 
 /*! Main backend function for the universal, RegEx'd tokenizing.
  *  Does all the true job of getting the tokens.
- *  - Iterates the lex.buffer, getting characters one by one, and checking if current string
- *    matches at least one regex.
- *  - Main disadvantage - the time is exponential depending on token's lenght,
- *    in other words, O(n^m), where 
- *    - m is lenght of the token,
- *    - n is the count of rules.
+ *  - Uses the RegLex model v0.2.
+ *  - Requires that the provided RegLex data include these properties:
+ *   1. Full Language Regex.
+ *    - It's a regex which is used to match all valid tokens of the language.
+ *    - Tokens are matched as ORed Capture Groups. The Group's Index is mapped to Token's ID.
+ *    - Fallback Error group is used, to identify errors.
+ *   2. Group Index - Token ID map.
+ *   3. Error group index.
+ *   4. Whitespace group index. 
+ *
+ *  - CAUTION: No checking is done on the RegLex data. 
+ *             The user must provide the valid above sections.
  */ 
 int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
-    std::cout <<"[LexerImpl::getNextTokenPriv_Regexed()]: Skipping WS...\n";
-    
-    // Firstly, skip all leading Whitespaces.
-    while(true){
-        for( ; lex.bufferPointer < lex.bufferEnd; lex.bufferPointer++ ){
-            lex.updateLineStats( *lex.bufferPointer );
-
-            if( lex.getCharType( *lex.bufferPointer ) != CHAR_WHITESPACE )
-                goto _wsLoopEnd;
-        }
-
-        // Buffer exhausted. Update lex.buffer - fetch new data.
-        if( !lex.updateBuffer() ){
-            // Update lex.buffer returned false - the file has ended. 
-            return TOKEN_END_OF_FILE;
-        }
-    } 
-    _wsLoopEnd:
-
-    // Increment lex.buffer pointer, to proceed to other character after the 
-    ++lex.bufferPointer;
-     
-    std::cout <<"After WS skip: Buffpos: "<< (int)(lex.bufferPointer - lex.buffer) <<
+    std::cout <<"[LexerImpl::getNextTokenPriv_Regexed()]: Using the Full Language Regex.\n";
+        
+    std::cout <<" Buffpos: "<< (int)(lex.bufferPointer - lex.buffer) <<
                 ", Bufflen: "<< (int)(lex.bufferEnd - lex.buffer) <<
                 ", Streampos: "<< lex.rdr.tellg() <<"\n";
     
-    // At this point, the lex.buffer pointer points to a non-whitespace character.
     // Mark current position as token start, and go on to the next character.
     const char* tokenStart = lex.bufferPointer;
-    ++lex.bufferPointer;
 
+    // Run while there are buffers to be extrated from stream.
     while( true ) {
-        for( ; lex.bufferPointer < lex.bufferEnd; lex.bufferPointer++ ){
-            // Character got. Now perform checks.
-            lex.updateLineStats( *lex.bufferPointer );
+        lex.updateBuffer();
 
-            // We don't need to check the type of current character.
-            // We just need to check if current token matches at least one regex.
-            // If there were some errors, but token is still "found" inside, we will 
-            // still use that token.
-            std::cmatch results;
-            int firstPartialRule = -1;
-            
-            for( auto&& rule : lex.lexics.rules ){
-                if( std::regex_search( tokenStart, (const char*)(lex.bufferPointer), 
-                                       results, rule.regex ) )
-                {
-                    // Examine position. If position is not start, check other rules,
-                    // But remember the ID of this one too.
-                    if( results.position() != 0 && firstPartialRule < 0 ){
-                        firstPartialRule = rule.getID();
-                        continue;
-                    }
-                    
-                    // If position is start, it means token is fully good.
-                    tok.id = rule.getID();
-                    tok.data = std::string(tokenStart, (const char*)(lex.bufferPointer));
-
-                    // Woohoo! Found a valid token!
-                    std::cout <<" MATCH FOUND! At: "<< (size_t)(lex.bufferPointer - tokenStart) 
-                              <<", ID: "<< tok.id <<"\n\n"; 
-                    return TOKEN_GOOD;
-                }
-            }
-
-            // Partial match was found. It means there were illegal characters on a token.
-            if( firstPartialRule >= 0 ){
-                tok.id = firstPartialRule;
-                tok.data = std::string(tokenStart, (const char*)(lex.bufferPointer));
-
-                // Woohoo! Found a valid token!
-                std::cout <<" MATCH FOUND! At: "<< (size_t)(lex.bufferPointer - tokenStart) 
-                          <<", ID: "<< tok.id <<"\n\n"; 
-                return TOKEN_PARTIAL; 
-            }
+        if( lex.useLineStats ){
+            // Update line stats.
         }
+
+        // Run Regex Iterator on a stream.
 
         // Check if token is too long (more than 75% of lex.buffer's size.)
         size_t toksize = (size_t)( lex.bufferEnd - tokenStart );
