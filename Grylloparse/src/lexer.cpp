@@ -100,7 +100,7 @@ private:
     void setFunctions(){
         // Set tokenizer.
         if( !getNextTokenPriv ){
-            if( lexics.tokenized )
+            if( lexics.regexed )
                 getNextTokenPriv = getNextTokenPriv_Regexed ;
             else
                 getNextTokenPriv = getNextTokenPriv_SimpleDelim;
@@ -108,7 +108,7 @@ private:
 
         // If using custom whitespaces, function must check for it.
         // Whitespace IS a delimiter.
-        if( lexics.useCustomWhitespaces && !lexics.whitespaces.empty() ){
+        if( lexics.useCustomWhitespaces && lexics.regexWhitespaces.ready() ){
             getCharType = [ & ] ( char c ) { 
                 if(lexics.whitespaces.find( c ) != std::string::npos)
                     return CHAR_WHITESPACE; 

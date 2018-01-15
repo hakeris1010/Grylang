@@ -42,7 +42,7 @@ ZSH_RESULT:=$(shell mkdir -p $(TESTDIR) $(LIBDIR) \
 
 GRYLLOPARSE:=grylloparse
 	   
-SOURCES_GRYLLOPARSE= src/reglex.cpp
+SOURCES_GRYLLOPARSE= src/reglex.cpp 
 					 #src/lexer.cpp 
 
 HEADERS_GRYLLOPARSE= src/grylloparse.hpp \

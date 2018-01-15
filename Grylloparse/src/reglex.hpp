@@ -17,7 +17,7 @@ namespace gparse{
 
 struct RegLexRule{
 private:
-    bool ready = false;
+    bool isReady = false;
     size_t id; 
 
 public:
@@ -27,16 +27,16 @@ public:
     RegLexRule(){}
     RegLexRule(size_t _id, const std::regex& _reg = std::regex(), 
                const std::string& _stringRepr = std::string() ) 
-        : ready( true ), id( _id ), regex( _reg ), stringRepr( _stringRepr ) 
+        : isReady( true ), id( _id ), regex( _reg ), stringRepr( _stringRepr ) 
     {}
     RegLexRule(size_t _id, std::regex&& _reg, std::string&& _stringRepr = std::string()) 
-        : ready( true ), id( _id ), regex( std::move(_reg) ), 
+        : isReady( true ), id( _id ), regex( std::move(_reg) ), 
           stringRepr( std::move( _stringRepr ) ) 
     {}
 
     size_t getID() const { return id; }
-    bool isReady() const { return ready; }
-    void setReady( bool val = true ){ ready = val; }
+    bool ready() const { return isReady; }
+    void setReady( bool val = true ){ isReady = val; }
 
     bool operator< (const RegLexRule& other) const {
         return id < other.id;
@@ -80,6 +80,7 @@ struct RegLexData{
     RegLexRule regexWhitespaces;
 
     // Language Lexics properties.
+    bool regexed = true;
     bool useCustomWhitespaces = false;
     bool useFallbackErrorRule = true;
 
@@ -98,7 +99,7 @@ struct RegLexData{
             fullLanguageRegex( std::move( fullRegex ) ),
             tokenTypeIDs( std::move( tokTypeIdMap ) ),
             regexWhitespaces( std::move( regCustomWhitespaces ) ),
-            useCustomWhitespaces( regexWhitespaces.isReady() ),
+            useCustomWhitespaces( regexWhitespaces.ready() ),
             useFallbackErrorRule( _useFallbackErrorRule )
     {}
                 
