@@ -12,7 +12,7 @@ const char* testLexics =
 //"<regex_delim> := <operator> | \"\\w\" ;"
 ;
 
-const char* testProgram =
+const char* testProgram = //"aaaaaa 11";
 "int i = 0;\n";
 
 
@@ -41,11 +41,10 @@ int main(int argc, char** argv){
 
     gparse::Lexer lexer( lexicon, pstream );
 
-    bool areMore = true;
-    while( areMore ){
-        gparse::LexicToken tok;
-        areMore = lexer.getNextToken( tok );
+    //lexer.start();
 
+    gparse::LexicToken tok;
+    while( lexer.getNextToken( tok ) ){
         std::cout<< "\nGOT TOKEN!!! : \n"<< tok <<"\n\n";
     }
 
