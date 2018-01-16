@@ -74,7 +74,11 @@ private:
     std::unique_ptr< gtools::BlockingQueue< LexicToken > > bQueue;
     
     // State variables
+    // Running - used in multithreading. Indicates whether the Extractor Thread 
+    //           is still running.
     volatile bool running = false; 
+
+    // Indicates whether Stream has Ended (EOF).
     volatile bool endOfStream = false;
 
     // Stream state specifics.
@@ -152,8 +156,8 @@ void LexerImpl::throwError( std::string message ){
  *  @return true, if read some data, false if no data was read.
  */ 
 bool LexerImpl::updateBuffer( size_t start ){
-    //if( endOfStream )
-    //    return false;
+    if( endOfStream )
+        return false;
 
     // If buffer is already exhausted, read stuff. 
     // "Start" position overrides the buffer pointers.
@@ -167,11 +171,13 @@ bool LexerImpl::updateBuffer( size_t start ){
         if( verbosity > 0 )
             std::cout <<"[LexerImpl::updateBuffer()]: Updating buffer. ("<< count <<" chars).\n";
 
+        // Check for EOF. If yes, mark end of stream.
+        if( rdr.eof() ){
+            endOfStream = true;
+        }
+
         // No chars were read - stream has ended. No more data can be got.
         if( count == 0 ){
-            // Mark stream end.
-            endOfStream = true;
-
             if( verbosity > 0 )
                 std::cout <<" Stream has ENDED ! \n\n";
             return false;
@@ -233,8 +239,11 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
         std::cout <<"[LexerImpl::getNextTokenPriv_Regexed()]: Using the Full Language Regex.\n";
 
     // Updating buffer, and check if we can read something.
-    if( !lex.updateBuffer() && (lex.bufferPointer >= lex.bufferEnd) )
+    if( !lex.updateBuffer() && (lex.bufferPointer >= lex.bufferEnd) ){
+        if( lex.verbosity > 0 )
+            std::cout <<" No data to read!\n\n";
         return TOKEN_END_OF_FILE;
+    }
 
     if( lex.verbosity > 1 ){
         std::cout <<" Buffpos: "<< (int)(lex.bufferPointer - &(lex.buffer[0])) <<
@@ -273,7 +282,10 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
             for (size_t i = 1; i < m.size(); i++){
                 if( m[i].length() > 0 ){
                     if( lex.verbosity > 1 )
-                        std::cout << " Regex Group #"<< i - 1 <<" was matched.\n";
+                        std::cout << " Regex Group #"<< i - 1 <<" was matched, at pos: " \
+                                  << m.position() << " from ptr.\n" ;
+                    if( lex.verbosity > 2 && lex.buffer.size() < 40 )
+                        std::cout << " Buffer from Pointer: \""<< lex.bufferPointer << "\"\n\n";
 
                     // Check if it's a whitespace. If so, match next token.
                     if( i - 1 == lex.lexics.spaceRuleIndex ){
