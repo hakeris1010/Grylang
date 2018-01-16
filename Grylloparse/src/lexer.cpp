@@ -394,25 +394,35 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
                     // So, std::move the data from the buffer to token's data,
                     // and then reset the buffer.
                     if( bufferWasExtended ){
+                        // Copy remaining buffer.
                         size_t tokp = (bufferPointer - lex.buffer.c_str()) + m.position();
+                        size_t remLen = lex.bufferEnd - tokEnd;
+
+                        std::string remBuff( BUFFER_SIZE, '\0' );
+                        remBuff.assign( tokEnd, remLen );
+
                         if( tokp > 0 ){
                             // Construct from buffer (Copy n bytes).
-                            tok.data = std::string( &(lex.buffer[0]), m.length() );
+                            tok.data.assign( std::move( lex.buffer ), tokp, m.length() );
                         }
                         else{ // Token starts at position ZERO.
-                            tok.data = std::string( std::move( lex.buffer ) );
+                            tok.data.assign( std::move( lex.buffer ) );
                             tok.data.resize( m.length() );
                         }
 
                         // Reset the buffer to start size.
-                        lex.buffer = std::string( BUFFER_SIZE, '\0' );
+                        lex.buffer.assign( std::move( remBuff ) );
+
+                        lex.bufferPointer = &(lex.buffer[0]);
+                        lex.bufferEnd = lex.bufferPointer + remLen;
                     }
-                    else
+                    else{
                         tok.data = std::move( m[i].str() ); 
-                     
-                    // Buffer hasn't ended - we're sure that token ends here. 
-                    // Update buffer pointers.
-                    lex.bufferPointer = tokEnd;
+
+                        // Buffer hasn't ended - we're sure that token ends here. 
+                        // Update buffer pointers.
+                        lex.bufferPointer = tokEnd; 
+                    }
 
                     return LexerImpl::TOKEN_GOOD;
                 }
