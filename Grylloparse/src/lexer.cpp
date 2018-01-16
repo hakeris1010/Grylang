@@ -83,7 +83,7 @@ private:
     // Token's store buffer.
     std::string buffer = std::string( BUFFER_SIZE, '\0' );
     const char* bufferPointer = &buffer[0];
-    const char* bufferEnd = &buffer[0] + buffer.size();
+    const char* bufferEnd = &buffer[0];
 
     // Backend functions.
     void throwError( std::string message );
@@ -144,7 +144,17 @@ private:
     static int getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok );
 
 public:
-    // Move-semantic and Copy-semantic constructors.
+    /*! Move-semantic and Copy-semantic constructors.
+     *  @param lexicData - RegLex-type structure, containing data necessary for lexing.
+     *                     Based on Regex. Most likely created from GBNF.
+     *
+     *  @param strm - C++ input stream from where to take data.
+     *  @param useBQ - Enable multithreaded mode (Run start() on separate worker thread,
+     *                 call getNextToken() from main thread).  
+     *
+     *  @param getNxTk - Supplied next token getter function.
+     *                   Must comply to the Lexer API.
+     */ 
     LexerImpl( const RegLexData& lexicData, std::istream& strm, bool useBQ=false, 
                const std::function< int(LexerImpl&, LexicToken&) >& getNxTk = 
                      std::function< int(LexerImpl&, LexicToken&) >() )
@@ -340,7 +350,10 @@ int LexerImpl::getNextTokenPriv_SimpleDelim( LexerImpl& lex, LexicToken& tok ){
  */ 
 int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
     std::cout <<"[LexerImpl::getNextTokenPriv_Regexed()]: Using the Full Language Regex.\n";
-        
+
+    // Updating buffer.
+    lex.updateBuffer();
+
     std::cout <<" Buffpos: "<< (int)(lex.bufferPointer - &(lex.buffer[0])) <<
                 ", Bufflen: "<< (int)(lex.bufferEnd - &(lex.buffer[0])) <<
                 ", Streampos: "<< lex.rdr.tellg() <<"\n";
@@ -359,23 +372,21 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
         bool reBufferNeeded = false;
 
         while( (lex.bufferPointer < lex.bufferEnd) && !reBufferNeeded ){
-            m.clear();
+            //m.clear();
             if( !std::regex_search( lex.bufferPointer, lex.bufferEnd, m, 
-                                    lex.lexics.fullLanguageRegex) ) 
+                                    lex.lexics.fullLanguageRegex.regex) ) 
                 lex.throwError( "REGEX Can't be matched. Maybe language regex is wrong." );
 
             // Find the group which was matched. Then use the index to set the ID.
             // Start from 1st submatch, because 0th is the whole regex match.
             for (size_t i = 1; i < m.size(); i++){
-                //std::cout<<" "<< i <<": "<< m[i] <<"\n";
                 if( m[i].length() > 0 ){
+                    std::cout << " Regex Group #"<< i - 1 <<" was matched.\n";
+
                     // Check if it's a whitespace. If so, match next token.
-                    if( i == lex.lexics.spaceRuleIndex )
+                    if( i - 1 == lex.lexics.spaceRuleIndex ){
+                        lex.bufferPointer += m.position() + m.length();
                         break;
-                    
-                    // Check if error. Throw an XcEpTiOn.
-                    else if( i == lex.lexics.errorRuleIndex ){
-                        lex.throwError( "Invalid token." );
                     }
 
                     // Check if the token has reached buffer end, but not file end.
@@ -386,16 +397,27 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
                         break;
                     }
 
+                    // At this point, Token ends before the end of the buffer/stream.
+                    // Check if error rule was matched. Throw an XcEpTiOn.
+                    else if( i - 1 == lex.lexics.errorRuleIndex ){
+                        // Find out line position.
+
+                        std::cout<<" ERROR! Token \""<< m[i] << "\" matched the Error Group!\n";
+                        lex.throwError( "Invalid token." );
+                    } 
+
                     // It's good at this point. Fill the data.
-                    tok.id = lex.lexics.tokenTypeIDs[ i ];
+                    tok.id = lex.lexics.tokenTypeIDs[ i - 1 ];
 
                     // Check if buffer has been extended. 
                     // If so, the buffer will need to be shrinked later. 
                     // So, std::move the data from the buffer to token's data,
                     // and then reset the buffer.
                     if( bufferWasExtended ){
+                        std::cout<<" Buffer was extended. Resetting sizes, std::move token.\n";
+
                         // Copy remaining buffer.
-                        size_t tokp = (bufferPointer - lex.buffer.c_str()) + m.position();
+                        size_t tokp = (lex.bufferPointer - lex.buffer.c_str()) + m.position();
                         size_t remLen = lex.bufferEnd - tokEnd;
 
                         std::string remBuff( BUFFER_SIZE, '\0' );
@@ -435,7 +457,7 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
         // At this point either data buffer is exhausted, or token is too long,
         // so ReBuffering is needed. Extend buffer by another BUFFER_SIZE bytes.
         if( reBufferNeeded ){
-            size_t curTokStart = (bufferPointer - lex.buffer.c_str()) + m.position();
+            size_t curTokStart = (lex.bufferPointer - lex.buffer.c_str()) + m.position();
             lex.buffer.resize( lex.buffer.size() + LexerImpl::BUFFER_SIZE, '\0' );
 
             // Move memory to start of the buffer, if the token starts later.
@@ -453,7 +475,7 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
         }
 
         // Fetch the new data from stream. All pointers will automatically be assigned.
-        if( !updateBuffer( fetchOffset ) ) //&& tok.id == LexicToken::INVALID_TOKEN )
+        if( !lex.updateBuffer( fetchOffset ) ) //&& tok.id == LexicToken::INVALID_TOKEN )
             return TOKEN_END_OF_FILE;
 
         // If buffer was extended (token is too long), 
@@ -462,23 +484,6 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
             lex.bufferPointer = &(lex.buffer[0]);
         }
     } 
-
-    // Noots!
-    /*std::cout<< "\n\nMatching with std::regex_search.\n";
-    const char* bufBeg = str.c_str();
-    const char* bufEnd = bufBeg + str.size();
-    std::cmatch m;
-
-    while (std::regex_search (bufBeg, bufEnd, m, r)) {
-        std::cout<<"Match value: "<< m.str() <<", Matches: "<< m.size() <<"\n";
-
-        // Start from 1st submatch, because 0th is the whole regex.
-        for (size_t i = 1; i < m.size(); i++)
-            std::cout<<" "<< i <<": "<< m[i] <<"\n";
-
-        std::cout << "\n";
-        bufBeg += m.position() + m.length();
-    }*/
 
     return TOKEN_INVALID_CONFIGURATION;
 }

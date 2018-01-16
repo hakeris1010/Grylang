@@ -37,7 +37,7 @@ int main(int argc, char** argv){
     std::cout<<"\n"<< lexicon <<"\n\n";
     std::cout<<"=========================\n\nTokenizing by Lexics...\n\n";
 
-    /*std::istringstream pstream( testProgram );
+    std::istringstream pstream( testProgram );
 
     gparse::Lexer lexer( lexicon, pstream );
 
@@ -47,7 +47,7 @@ int main(int argc, char** argv){
         areMore = lexer.getNextToken( tok );
 
         std::cout<< "\nGOT TOKEN!!! : \n"<< tok <<"\n\n";
-    }*/
+    }
 
     return 0;
 }

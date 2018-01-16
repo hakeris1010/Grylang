@@ -290,7 +290,7 @@ static inline void checkAndAssignLexicProperties( RegLexData& rl,
 
     // If using error fallback rule, add an additional group for catching everything else.
     if( useErrorFallbackRule ){
-        finalRegex.append( "|(.)" );
+        finalRegex.append( "|(.+)" );
         rl.errorRuleIndex = rl.spaceRuleIndex + 1;
     }
 
@@ -310,6 +310,8 @@ void RegLexData::print( std::ostream& os ) const {
     // Bools
     os << " useCustomWhitespaces: "<< useCustomWhitespaces <<"\n"; 
     os << " useFallbackErrorRule: "<< useFallbackErrorRule <<"\n"; 
+    os << " spaceRuleIndex: "<< spaceRuleIndex <<"\n"; 
+    os << " errorRuleIndex: "<< errorRuleIndex <<"\n"; 
 
     // Actual properties.
     if( useCustomWhitespaces )
