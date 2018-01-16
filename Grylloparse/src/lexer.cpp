@@ -41,7 +41,7 @@ class LexerImpl : public BaseLexer
 {
 // Specific constants.
 public:
-    const static size_t BUFFER_SIZE = 2048;
+    const static size_t BUFFER_SIZE = 5;
 
     // Token extractor responses.
     // < 0 means fatal error
@@ -62,6 +62,7 @@ private:
     // Mode properties.
     const bool useBlockingQueue;
     bool useLineStats = false;
+    int verbosity = 3;
 
     // Lexic Data (RegLex-format).
     const RegLexData lexics;
@@ -151,22 +152,28 @@ void LexerImpl::throwError( std::string message ){
  *  @return true, if read some data, false if no data was read.
  */ 
 bool LexerImpl::updateBuffer( size_t start ){
-    // If buffer is already exhausted, read stuff.
-    if( bufferPointer >= bufferEnd ){
+    //if( endOfStream )
+    //    return false;
+
+    // If buffer is already exhausted, read stuff. 
+    // "Start" position overrides the buffer pointers.
+    if( (bufferPointer >= bufferEnd) || start ){
         if( start >= buffer.size() ) // Fix start position if wrong.
             start = 0;
 
         rdr.read( &buffer[0] + start, buffer.size() - start );
         size_t count = rdr.gcount();
 
-        std::cout <<"[LexerImpl::updateBuffer()]: Updating buffer. ("<< count <<" chars).\n";
+        if( verbosity > 0 )
+            std::cout <<"[LexerImpl::updateBuffer()]: Updating buffer. ("<< count <<" chars).\n";
 
         // No chars were read - stream has ended. No more data can be got.
         if( count == 0 ){
             // Mark stream end.
             endOfStream = true;
 
-            std::cout <<" Stream has ENDED ! \n\n";
+            if( verbosity > 0 )
+                std::cout <<" Stream has ENDED ! \n\n";
             return false;
         }
 
@@ -174,7 +181,8 @@ bool LexerImpl::updateBuffer( size_t start ){
         bufferEnd = &buffer[0] + start + count;
         bufferPointer = &buffer[0] + start;
 
-        std::cout <<"\n";
+        if( verbosity > 0 )
+            std::cout <<"\n";
     }
     // Buffer is not exhausted - data still avairabru.
     return true;
@@ -200,7 +208,8 @@ inline void LexerImpl::updateLineStats( char c ){
  *    updates the statistics (line count, etc).
  */ 
 int LexerImpl::getNextTokenPriv_SimpleDelim( LexerImpl& lex, LexicToken& tok ){
-    std::cout <<"[LexerImpl::getNextTokenPriv_SimpleDelim()]: This is Shit!\n";
+    if( lex.verbosity > 0 )
+        std::cout <<"[LexerImpl::getNextTokenPriv_SimpleDelim()]: This is Shit!\n";
     return TOKEN_INVALID_CONFIGURATION;
 }
 
@@ -220,17 +229,21 @@ int LexerImpl::getNextTokenPriv_SimpleDelim( LexerImpl& lex, LexicToken& tok ){
  *             The user must provide the valid above sections.
  */ 
 int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
-    std::cout <<"[LexerImpl::getNextTokenPriv_Regexed()]: Using the Full Language Regex.\n";
+    if( lex.verbosity > 0 )
+        std::cout <<"[LexerImpl::getNextTokenPriv_Regexed()]: Using the Full Language Regex.\n";
 
-    // Updating buffer.
-    lex.updateBuffer();
+    // Updating buffer, and check if we can read something.
+    if( !lex.updateBuffer() && (lex.bufferPointer >= lex.bufferEnd) )
+        return TOKEN_END_OF_FILE;
 
-    std::cout <<" Buffpos: "<< (int)(lex.bufferPointer - &(lex.buffer[0])) <<
-                ", Bufflen: "<< (int)(lex.bufferEnd - &(lex.buffer[0])) <<
-                ", Streampos: "<< lex.rdr.tellg() <<"\n";
+    if( lex.verbosity > 1 ){
+        std::cout <<" Buffpos: "<< (int)(lex.bufferPointer - &(lex.buffer[0])) <<
+                    ", Bufflen: "<< (int)(lex.bufferEnd - &(lex.buffer[0])) <<
+                    ", Streampos: "<< lex.rdr.tellg() <<"\n";
+    }
 
     // Mark token as Invalid in the beginning.
-    tok.id = LexicToken::INVALID_TOKEN; 
+    //tok.id = LexicToken::INVALID_TOKEN; 
 
     // If buffer was extended (token is longer that one fetch-length).
     bool bufferWasExtended = false;
@@ -259,7 +272,8 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
             // Start from 1st submatch, because 0th is the whole regex match.
             for (size_t i = 1; i < m.size(); i++){
                 if( m[i].length() > 0 ){
-                    std::cout << " Regex Group #"<< i - 1 <<" was matched.\n";
+                    if( lex.verbosity > 1 )
+                        std::cout << " Regex Group #"<< i - 1 <<" was matched.\n";
 
                     // Check if it's a whitespace. If so, match next token.
                     if( i - 1 == lex.lexics.spaceRuleIndex ){
@@ -275,15 +289,17 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
                         break;
                     }
 
-                    // At this point, Token ends before the end of the buffer/stream.
+                    // At this point, Token ends before the end of the buffer,
+                    // or the stream has actually ended, so this is the valid end too.
                     
                     // Check if error rule was matched. Throw an XcEpTiOn.
                     else if( lex.lexics.useFallbackErrorRule &&
                              i - 1 == lex.lexics.errorRuleIndex )
                     {
-                        // Find out line position.
+                        // TODO: Find out line position.
 
-                        std::cout<<" ERROR! Token \""<< m[i] << "\" matched the Error Group!\n";
+                        if( lex.verbosity > 0 )
+                            std::cout<<" ERROR! Token \""<< m[i] << "\" matched the Error Group!\n";
                         lex.throwError( "Invalid token." );
                     } 
 
@@ -295,14 +311,17 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
                     // So, std::move the data from the buffer to token's data,
                     // and then reset the buffer.
                     if( bufferWasExtended ){
-                        std::cout<<" Buffer was extended. Resetting sizes, std::move token.\n";
+                        if( lex.verbosity > 2 ){
+                            std::cout<<" Buffer was extended. std::move buffer to token data.\n";
+                            if( lex.buffer.size() < 50) std::cout<<" Buffer: "<<lex.buffer<<"\n";
+                        }
 
                         // Copy remaining buffer.
                         size_t tokp = (lex.bufferPointer - lex.buffer.c_str()) + m.position();
                         size_t remLen = lex.bufferEnd - tokEnd;
 
                         std::string remBuff( BUFFER_SIZE, '\0' );
-                        remBuff.assign( tokEnd, remLen );
+                        std::memmove( &(remBuff[0]), tokEnd, remLen );
 
                         if( tokp > 0 ){
                             // Construct from buffer (Copy n bytes).
@@ -318,6 +337,11 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
 
                         lex.bufferPointer = &(lex.buffer[0]);
                         lex.bufferEnd = lex.bufferPointer + remLen;
+
+                        if( lex.verbosity > 2 ){
+                            std::cout<<" BuffSize after std::moving: "<<lex.buffer.size()<<"\n";
+                            if(lex.buffer.size() < 50) std::cout<<" Buffer: "<<lex.buffer<<"\n";
+                        }
                     }
                     else{
                         tok.data = std::move( m[i].str() ); 
@@ -327,9 +351,11 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
                         lex.bufferPointer = tokEnd; 
                     }
 
-                    std::cout<<" Token Matched! "<< "ID: "<< tok.id << ", data: " <<
-                        ( tok.data.size() < 30 ? tok.data : 
-                          "("+std::to_string( tok.data.size() )+")" ) << "\n\n";
+                    if( lex.verbosity > 0 ){
+                        std::cout<<" Token Matched! "<< "ID: "<< tok.id << ", data: " <<
+                            ( tok.data.size() < 30 ? tok.data : 
+                              "("+std::to_string( tok.data.size() )+")" ) << "\n\n";
+                    }
                     return LexerImpl::TOKEN_GOOD;
                 }
             }
@@ -338,33 +364,48 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
         // Offset in the buffer to where to fetch the data to.
         size_t fetchOffset = 0;
 
-        // At this point either data buffer is exhausted, or token is too long,
+        // At this point either data buffer is exhausted, or token is too long.
+        // ( bufferPointer == bufferEnd )
         // so ReBuffering is needed. Extend buffer by another BUFFER_SIZE bytes.
         if( reBufferNeeded ){
-            size_t curTokStart = (lex.bufferPointer - lex.buffer.c_str()) + m.position();
+            if( lex.verbosity > 2 ){
+                if( lex.buffer.size() < 50 ) std::cout<< " Buffer Before: "<<lex.buffer<<"\n";
+            }
+
+            size_t curTokStart = (lex.bufferPointer - &(lex.buffer[0])) + m.position();
             lex.buffer.resize( lex.buffer.size() + LexerImpl::BUFFER_SIZE, '\0' );
 
             // Move memory to start of the buffer, if the token starts later.
             if( curTokStart > 0 )
                 std::memmove( &(lex.buffer[0]), &(lex.buffer[0]) + curTokStart, m.length() );
-
+             
             // Fetch data to this place.
             fetchOffset = m.length();
 
             // Mark this flag, for reset after valid token is found.
             bufferWasExtended = true;
 
-            std::cout << " Token was too long. ReBuffered. New BufLen: "<< lex.buffer.size()
-                      << ", token length: "<< m.length() <<"\n";  
+            if( lex.verbosity > 2 ){
+                std::cout << " Token was too long. ReBuffered. New BufLen: "<< lex.buffer.size()
+                          << ", token length: "<< m.length() <<"\n";  
+                if( lex.buffer.size() < 50 ) std::cout<< " Buffer: "<<lex.buffer<<"\n";
+            }
         }
 
         // Fetch the new data from stream. All pointers will automatically be assigned.
-        if( !lex.updateBuffer( fetchOffset ) ) //&& tok.id == LexicToken::INVALID_TOKEN )
-            return TOKEN_END_OF_FILE;
+        if( !lex.updateBuffer( fetchOffset ) ){
+            if( !bufferWasExtended )
+                return TOKEN_END_OF_FILE;
 
-        // If buffer was extended (token is too long), 
+            // However if the buffer was extended, and no data were extracted,
+            // We must ReSet the end of buffer to the point where current data ends.
+            if( reBufferNeeded )
+                lex.bufferEnd =  &(lex.buffer[0]) + fetchOffset;
+        }
+
+        // If buffer was extended (token was too long).
         // the data which needs to be checked starts at the beginning.
-        if( reBufferNeeded ){
+        if( bufferWasExtended ){
             lex.bufferPointer = &(lex.buffer[0]);
         }
     } 
@@ -411,7 +452,7 @@ void LexerImpl::start(){
  *  - If no multithreading is used, it directly calls the backend function.
  *  - Can return invalid tokens if non-fatal error occured.
  *  @param tok - reference to token to-be-filled.
- *  @return true if more tokens can be expected - not end.
+ *  @return true - if valid token was extracted.
  */ 
 bool LexerImpl::getNextToken( LexicToken& tok ){
     // If using multithreading, wait until token gets put into the queue.
@@ -427,8 +468,8 @@ bool LexerImpl::getNextToken( LexicToken& tok ){
     // If no multithreading, just directly call the private token getter.
     int ret = getNextTokenPriv( *this, tok );
 
-    // return true (have more tokens) if normal token or non-fatal error.
-    return ret >= 0 && !endOfStream;
+    // return true if non-fatal error, and not end of stream.
+    return ret >= 0 ;
 }
 
 /*=============================================================

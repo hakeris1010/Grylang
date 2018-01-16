@@ -1,5 +1,12 @@
 break main
 break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/gparseprogram.cpp:47
-break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/lexer.cpp:471
-break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/lexer.cpp:331
-break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/lexer.cpp:229
+break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/lexer.cpp:223
+break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/lexer.cpp:155
+break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/lexer.cpp:243
+break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/lexer.cpp:265
+break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/lexer.cpp:297
+break *0x000000000040201b
+break *0x000000000040201b
+break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/lexer.cpp:339
+break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/lexer.cpp:348
+break /c/users/Kestutis/Documents/CodeBlocks Projects/Grylang/Grylloparse/src/lexer.cpp:175
