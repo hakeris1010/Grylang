@@ -3,7 +3,8 @@
 #include "grylloparse.hpp"
 #include "lexer.hpp"
 
-// Test Lexics.
+const bool useMultithreading = true;
+
 const char* testLexics =
 "<ident> := \"\\w+\" ;\n"
 "<operator> := \"[;=+\\-\\*/\\[\\]{}<>%]\" ;\n"
@@ -39,13 +40,22 @@ int main(int argc, char** argv){
 
     std::istringstream pstream( testProgram );
 
-    gparse::Lexer lexer( lexicon, pstream );
+    gparse::Lexer* lexer = nullptr;
+    
+    if( useMultithreading ){
+        lexer = new gparse::Lexer( lexicon, pstream, true );
+        lexer->start();
+    }
+    else
+        lexer = new gparse::Lexer( lexicon, pstream );
 
-    //lexer.start();
+    if( lexer ){
+        gparse::LexicToken tok;
+        while( lexer->getNextToken( tok ) ){
+            std::cout<< "\nGOT TOKEN!!! : \n"<< tok <<"\n\n";
+        }
 
-    gparse::LexicToken tok;
-    while( lexer.getNextToken( tok ) ){
-        std::cout<< "\nGOT TOKEN!!! : \n"<< tok <<"\n\n";
+        delete lexer;
     }
 
     return 0;

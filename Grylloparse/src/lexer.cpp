@@ -63,7 +63,7 @@ private:
     const bool useBlockingQueue;
     
     const bool useLineStats = false;
-    const bool useDedicatedLoopyTokenizer = false;
+    const bool useDedicatedLoopyTokenizer = true;
 
     const int verbosity = 3;
 
@@ -468,8 +468,98 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
  *  every time.
  *  - For calling conditions, look on public interface method.
  */ 
-static void LexerImpl::runner_dedicatedIteration( LexerImpl& lex ){
-    
+void LexerImpl::runner_dedicatedIteration( LexerImpl& lex ){
+    if( lex.verbosity > 0 )
+        std::cout << "[LexerImpl::runner_dedicatedIteration()]: Starting the Harvesting!\n"; 
+
+    // Perform an initial buffer update.
+    if( !lex.updateBuffer() ){
+        if( lex.verbosity > 0 )
+            std::cout << " No more data to read!\n\n";
+        return;
+    }
+
+    // Status variables.
+    size_t matches = 0;
+    size_t bufferUpdates = 0;
+
+    // The main loop - performs buffer updates and extends.
+    while( true ){
+        // The Matching loop - performs regex matches in a buffer.
+        for( auto it  = std::cregex_iterator( lex.bufferPointer, lex.bufferEnd, 
+                                              lex.lexics.fullLanguageRegex.regex );
+                  it != std::cregex_iterator();
+                  ++it, ++matches )
+        {
+            std::cmatch m = *it;
+
+            if( lex.verbosity > 1 ){
+                std::cout << "\nMATCH FOUND: "; 
+                if( m.length() < 50 ) 
+                    std::cout <<"\""<< m.str() <<"\"\n";
+                else 
+                    std::cout <<"("<< m.length() <<" characters)\n"; 
+                std::cout <<" At position " << m.position() <<", Length: "<< m.length();
+            }
+
+            // Check which group was matched. By that set token's ID.
+            for( size_t i = 1; i < m.size(); i++ ){
+                if( m[i].length() ) {
+                    if( lex.verbosity > 1 )
+                        std::cout << " Capture group index: " << i - 1 << "\n";
+
+                    // Check if it's a whitespace. If so, match next token.
+                    if( i - 1 == lex.lexics.spaceRuleIndex ){
+                        if( lex.verbosity > 2 )
+                            std::cout << " Whitespace group was matched! Skipping...\n";
+                        break;
+                    }
+
+                    // Check if the token has reached buffer end, but not file end.
+                    // If so, reBuffering is needed. Break the loop and fetch new data.
+                    const char* tokEnd = lex.bufferPointer + m.position() + m.length();
+                    if( (tokEnd >= lex.bufferEnd) && !lex.endOfStream ){
+                        if( lex.verbosity > 2 )
+                            std::cout << " Token match reached the end of the buffer." \
+                                      << " ReBuffering is needed.
+                        reBufferNeeded = true;
+                        break;
+                    }
+
+                    // At this point, Token ends before the end of the buffer,
+                    // or the stream has actually ended, so this is the valid end too.
+
+                    // Check if error rule was matched. Throw an XcEpTiOn.
+                    if( lex.lexics.useFallbackErrorRule &&
+                        i - 1 == lex.lexics.errorRuleIndex )
+                    {
+                        // TODO: Find out line position.
+
+                        if( lex.verbosity > 0 )
+                            std::cout << " ERROR! Token \""<< m[i] \
+                                      << "\" matched the Error Group!\n";
+                        lex.throwError( "Invalid token." );
+                    } 
+
+                    // Token is good at this point. Fill the data.
+                    tok.id = lex.lexics.tokenTypeIDs[ i - 1 ];
+
+                    // m.str() - Create this match's std::string (copy bytes from 
+                    //           buffer to std::string,
+                    // assign( std::move( ... ) ) - Move the data (assign pointer to buffer)
+                    //           from the string created in m.str() to tok.data.
+                    tok.data.assign( std::move( m.str() ) );
+
+
+                    // Push to queue.
+
+                    break;
+                }
+            }
+        }
+
+        break;
+    }
 }
  
 /*! Runner function which uses the single-token getter function
@@ -478,7 +568,7 @@ static void LexerImpl::runner_dedicatedIteration( LexerImpl& lex ){
  *  - For more optimized, dedicated runner iteration loop, use the
  *    runner_dedicatedIteration function.
  */ 
-static void LexerImpl::runner_usingTokenGetter( LexerImpl& lex ){
+void LexerImpl::runner_usingTokenGetter( LexerImpl& lex ){
     while( 1 ){
         // Allocate a new token.
         LexicToken tok;
@@ -492,9 +582,6 @@ static void LexerImpl::runner_usingTokenGetter( LexerImpl& lex ){
         if( tt < 0 )
             break; 
     }
-
-    // At the end, push a token which will indicate the end of stream, to prevent deadlocks.
-    lex.bQueue->push( LexicToken( LexicToken::END_OF_STREAM_TOKEN, std::string() ) );
 }
 
 /*! Public interface to runner function, which fills the blocking queue with tokens.
@@ -516,7 +603,10 @@ void LexerImpl::start(){
     running = true; 
 
     // Call implementation-specific private function.
-    runner_priv();
+    runnerPriv( *this );
+     
+    // At the end, push a token which will indicate the end of stream, to prevent deadlocks.
+    bQueue->push( LexicToken( LexicToken::END_OF_STREAM_TOKEN, std::string() ) ); 
 
     running = false;    
 }
