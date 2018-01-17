@@ -318,7 +318,8 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
                     // It's good at this point. Fill the data.
                     tok.id = lex.lexics.tokenTypeIDs[ i - 1 ];
 
-                    // Check if buffer has been extended. 
+                    // Check if buffer has been extended (ReBuffered when token was longer 
+                    // than half of the buffer).
                     // If so, the buffer will need to be shrinked later. 
                     // So, std::move the data from the buffer to token's data,
                     // and then reset the buffer.
@@ -376,31 +377,56 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
         // Offset in the buffer to where to fetch the data to.
         size_t fetchOffset = 0;
 
-        // At this point either data buffer is exhausted, or token is too long.
-        // ( bufferPointer == bufferEnd )
-        // so ReBuffering is needed. Extend buffer by another BUFFER_SIZE bytes.
+        /* At this point either data buffer is exhausted, or token is too long.
+         * ( bufferPointer == bufferEnd ), so ReBuffering is needed. 2 options:
+         * 1. Toke is SHORTER than BufferSize/2
+         * 2. Token is LONGER than BufferSize/2. Extend buffer by BUFFER_SIZE/2 bytes.
+         *    This way we will be able to get additional max. BUFFER_SIZE data from stream.
+         *    When token is finished and we shrink buffer again, the remaining data will
+         *    be shorter than BUFFER_SIZE, so it fits.
+         */
         if( reBufferNeeded ){
             if( lex.verbosity > 2 ){
+                std::cout<<" Token ends at buffer end. ReBuffering needed.\n";
                 if( lex.buffer.size() < 50 ) std::cout<< " Buffer Before: "<<lex.buffer<<"\n";
             }
 
             size_t curTokStart = (lex.bufferPointer - &(lex.buffer[0])) + m.position();
-            lex.buffer.resize( lex.buffer.size() + LexerImpl::BUFFER_SIZE, '\0' );
 
+            // If token is longer than half of BUFFER_SIZE, extend the buffer.
+            if( (size_t)(m.length()) > (size_t)(lex.buffer.size() - LexerImpl::BUFFER_SIZE/2) ){
+                if( lex.verbosity > 2 )
+                    std::cout<< " Extending Buffer.\n";
+
+                // Move memory to the resized buffer, if the token starts later.
+                if( curTokStart > 0 ){
+                    // Create new buffer
+                    std::string tmp( lex.buffer.size() + (LexerImpl::BUFFER_SIZE / 2), '\0' );
+
+                    // Move data to new buffer.
+                    std::memmove( &(tmp[0]), &(lex.buffer[0]) + curTokStart, m.length() );
+
+                    // Assign the new buffer to the lex.buffer (MOVE, no copies).
+                    lex.buffer.assign( std::move( tmp ) );
+                }
+                else
+                    lex.buffer.resize( lex.buffer.size() + (LexerImpl::BUFFER_SIZE / 2), '\0' );
+
+                // Mark this flag, for buffer eset after valid token is matched.
+                bufferWasExtended = true;
+            }
+            // If token is not longer than, no resizes needed.
             // Move memory to start of the buffer, if the token starts later.
-            if( curTokStart > 0 )
+            else if( curTokStart > 0 )
                 std::memmove( &(lex.buffer[0]), &(lex.buffer[0]) + curTokStart, m.length() );
              
             // Fetch data to this place.
             fetchOffset = m.length();
 
-            // Mark this flag, for reset after valid token is found.
-            bufferWasExtended = true;
-
             if( lex.verbosity > 2 ){
-                std::cout << " Token was too long. ReBuffered. New BufLen: "<< lex.buffer.size()
+                std::cout << " After ReBuffering: New BufLen: "<< lex.buffer.size()
                           << ", token length: "<< m.length() <<"\n";  
-                if( lex.buffer.size() < 50 ) std::cout<< " Buffer: "<<lex.buffer<<"\n";
+                if( lex.buffer.size() < 50 ) std::cout<< " Buffer After: "<<lex.buffer<<"\n";
             }
         }
 
@@ -417,7 +443,7 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
 
         // If buffer was extended (token was too long).
         // the data which needs to be checked starts at the beginning.
-        if( bufferWasExtended ){
+        if( reBufferNeeded || bufferWasExtended ){
             lex.bufferPointer = &(lex.buffer[0]);
         }
     } 
