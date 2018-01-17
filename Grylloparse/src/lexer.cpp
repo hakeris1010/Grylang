@@ -479,19 +479,33 @@ void LexerImpl::runner_dedicatedIteration( LexerImpl& lex ){
         return;
     }
 
+    // Constants needed for rebuffer modes.
+    const char REFETCH_NEEDED   = 1;
+    const char TOKEN_AT_THE_END = 2;
+
     // Status variables.
     size_t matches = 0;
     size_t bufferUpdates = 0;
+    bool bufferWasExtended = false;
 
     // The main loop - performs buffer updates and extends.
-    while( true ){
+    while( ++bufferUpdates ){
+        char reBufferNeeded = 0;
+        const char* tokEnd = lex.bufferPointer;
+        size_t fetchOffset = 0;
+
         // The Matching loop - performs regex matches in a buffer.
-        for( auto it  = std::cregex_iterator( lex.bufferPointer, lex.bufferEnd, 
-                                              lex.lexics.fullLanguageRegex.regex );
-                  it != std::cregex_iterator();
-                  ++it, ++matches )
+        // Run while current token iterator is valid (not end of buffer)
+        // - Notice that at the end of loop we increment only the "Next Token"
+        //   iterator, and assign current token iterator from the next token iterator.
+        // - So only one regex match is being done at each loop.
+        for( auto it = std::cregex_iterator( lex.bufferPointer, lex.bufferEnd, 
+                                             lex.lexics.fullLanguageRegex.regex );
+                  !reBufferNeeded && (it != std::cregex_iterator()); 
+                  ++it, ++matches ) 
         {
-            std::cmatch m = *it;
+            // Current match.
+            auto&& m = *it;
 
             if( lex.verbosity > 1 ){
                 std::cout << "\nMATCH FOUND: "; 
@@ -506,7 +520,7 @@ void LexerImpl::runner_dedicatedIteration( LexerImpl& lex ){
             for( size_t i = 1; i < m.size(); i++ ){
                 if( m[i].length() ) {
                     if( lex.verbosity > 1 )
-                        std::cout << " Capture group index: " << i - 1 << "\n";
+                        std::cout << ", Capture group index: " << i - 1 << "\n";
 
                     // Check if it's a whitespace. If so, match next token.
                     if( i - 1 == lex.lexics.spaceRuleIndex ){
@@ -517,12 +531,14 @@ void LexerImpl::runner_dedicatedIteration( LexerImpl& lex ){
 
                     // Check if the token has reached buffer end, but not file end.
                     // If so, reBuffering is needed. Break the loop and fetch new data.
-                    const char* tokEnd = lex.bufferPointer + m.position() + m.length();
+                    tokEnd = lex.bufferPointer + m.position() + m.length();
                     if( (tokEnd >= lex.bufferEnd) && !lex.endOfStream ){
                         if( lex.verbosity > 2 )
                             std::cout << " Token match reached the end of the buffer." \
-                                      << " ReBuffering is needed.
-                        reBufferNeeded = true;
+                                      << " ReBuffering is needed.\n";
+                        // Set bufferPointer to token's start, for easier data moving.
+                        reBufferNeeded = TOKEN_AT_THE_END;
+                        lex.bufferPointer += m.position();
                         break;
                     }
 
@@ -542,23 +558,112 @@ void LexerImpl::runner_dedicatedIteration( LexerImpl& lex ){
                     } 
 
                     // Token is good at this point. Fill the data.
+                    LexicToken tok;
+
                     tok.id = lex.lexics.tokenTypeIDs[ i - 1 ];
+                    
+                    // Reset the buffer when job is done, if was extended.
+                    // If buffer was extended, the token starts AT BEGINNING OF THE BUFFER.
+                    if( bufferWasExtended ){
+                        if( lex.verbosity > 2 )
+                            std::cout<< " Buffer was extended. Shrinking and std::moving.";
 
-                    // m.str() - Create this match's std::string (copy bytes from 
-                    //           buffer to std::string,
-                    // assign( std::move( ... ) ) - Move the data (assign pointer to buffer)
-                    //           from the string created in m.str() to tok.data.
-                    tok.data.assign( std::move( m.str() ) );
+                        tok.data.assign( std::move( lex.buffer ) );
 
+                        // Move remaining data to new buffer.
+                        lex.buffer.assign( LexerImpl::BUFFER_SIZE, '\0' );
+                        std::memmove( &(lex.buffer[0]), tokEnd, (lex.bufferEnd - tokEnd) );
 
-                    // Push to queue.
+                        // Now we can safely resize the token buffer.
+                        tok.data.resize( m.length() );
+
+                        reBufferNeeded = REFETCH_NEEDED;
+                        fetchOffset = (lex.bufferEnd - tokEnd);
+
+                        bufferWasExtended = false;
+
+                        if( lex.verbosity > 2 )
+                            std::cout<< " New length: "<< lex.buffer.size() <<"\n";
+                    }
+                    else{
+                        // m.str() - Create this match's std::string (copy bytes from 
+                        //           buffer to std::string,
+                        // assign( std::move( ... ) ) - Move the data (assign pointer to buffer)
+                        //           from the string created in m.str() to tok.data.
+                        tok.data.assign( std::move( m.str() ) ); 
+                    }
+
+                    // Push token to queue.
+                    lex.bQueue->push( tok );
 
                     break;
                 }
             }
         }
+         
+        // Take care of buffer shifting/extending, and data fetching.
+        // If ReBuffering is needed, then token start/end positions are already known.
+        // Move token to the start of the buffer.
+        if( reBufferNeeded == TOKEN_AT_THE_END ){
+            if( lex.verbosity > 2 ){
+                std::cout<<" ReBuffering.";
+                if( lex.buffer.size() < 50 ) std::cout<< " Buffer Before: "<<lex.buffer;
+                std::cout<<"\n";
+            }
 
-        break;
+            // Token length is stored in fetchOffset.
+            fetchOffset = tokEnd - lex.bufferPointer;
+
+            // If token is longer than half of BUFFER_SIZE, extend the buffer.
+            if( fetchOffset > (size_t)(lex.buffer.size() - LexerImpl::BUFFER_SIZE/2) ){
+                if( lex.verbosity > 2 )
+                    std::cout<< " Extending Buffer.\n";
+
+                // Move memory to the resized buffer, if the token starts later.
+                if( fetchOffset > 0 ){
+                    // Create new buffer
+                    std::string tmp( lex.buffer.size() + (LexerImpl::BUFFER_SIZE / 2), '\0' );
+
+                    // Move data to new buffer. bufferPointer points to start of the token.
+                    std::memmove( &(tmp[0]), lex.bufferPointer, fetchOffset);
+
+                    // Assign the new buffer to the lex.buffer (MOVE, no copies).
+                    lex.buffer.assign( std::move( tmp ) );
+                }
+                else
+                    lex.buffer.resize(lex.buffer.size() + (LexerImpl::BUFFER_SIZE / 2), '\0');
+
+                // Mark this flag, for buffer eset after valid token is matched.
+                bufferWasExtended = true;
+            }
+            // If token is not longer than, no resizes needed.
+            // Move memory to start of the buffer, if the token starts later.
+            else if( fetchOffset > 0 )
+                std::memmove( &(lex.buffer[0]), lex.bufferPointer, fetchOffset );
+
+            if( lex.verbosity > 2 ){
+                std::cout << " After ReBuffering: New BufLen: "<< lex.buffer.size()
+                          << ", token length: "<< fetchOffset <<"\n";  
+                if( lex.buffer.size() < 50 ) std::cout<< " Buffer After: "<<lex.buffer<<"\n";
+            }
+        }
+
+        // Fetch the new data from stream. All pointers will automatically be assigned.
+        if( !lex.updateBuffer( fetchOffset ) ){
+            if( !bufferWasExtended )
+                return;
+
+            // However if the buffer was extended, and no data were extracted,
+            // We must ReSet the end of buffer to the point where current data ends.
+            if( reBufferNeeded )
+                lex.bufferEnd =  &(lex.buffer[0]) + fetchOffset;
+        }
+
+        // If buffer was extended (token was too long).
+        // the data which needs to be checked starts at the beginning.
+        if( reBufferNeeded || bufferWasExtended ){
+            lex.bufferPointer = &(lex.buffer[0]);
+        }
     }
 }
  
