@@ -61,8 +61,11 @@ public:
 private:
     // Mode properties.
     const bool useBlockingQueue;
-    bool useLineStats = false;
-    int verbosity = 3;
+    
+    const bool useLineStats = false;
+    const bool useDedicatedLoopyTokenizer = false;
+
+    const int verbosity = 3;
 
     // Lexic Data (RegLex-format).
     const RegLexData lexics;
@@ -95,22 +98,31 @@ private:
 
     bool updateBuffer( size_t start = 0 );
 
-    // TODO: Use dynamically assigned Tokenizers,
-    // or even use a separate class for tokenizing.
+    // Dynamically assigned tokenizer and iterative loop tokenizer implementations
     std::function< int(LexerImpl&, LexicToken&) > getNextTokenPriv; 
+    std::function< void( LexerImpl& ) > runnerPriv; 
 
     void setFunctions(){
-        // Set tokenizer.
+        // Set single-token tokenizer.
         if( !getNextTokenPriv ){
             if( lexics.regexed )
                 getNextTokenPriv = getNextTokenPriv_Regexed ;
             else
                 getNextTokenPriv = getNextTokenPriv_SimpleDelim;
         }
+
+        // Set iterative runner tokenizer.
+        if( useDedicatedLoopyTokenizer )
+            runnerPriv = runner_dedicatedIteration;
+        else
+            runnerPriv = runner_usingTokenGetter;
     }
 
     static int getNextTokenPriv_SimpleDelim( LexerImpl& lex, LexicToken& tok );
     static int getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok );
+
+    static void runner_dedicatedIteration( LexerImpl& lex );
+    static void runner_usingTokenGetter( LexerImpl& lex );
 
 public:
     /*! Move-semantic and Copy-semantic constructors.
@@ -451,29 +463,30 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
     return TOKEN_INVALID_CONFIGURATION;
 }
 
-/*! Runner function which fills the blocking queue with tokens.
- *  - Runs until the end of stream, or until error occurs.
- *  - CALLING RULES:
- *    - Can be called only when multithreading (using the Blocking Queue).
- *    - Also, only one instance of this function may execute at time.
- *
- *  TODO: Don't use blocking queues, but implement an embedded condition-waiting 
- *        system, to avoid overhead and error-pronity of pushing END_OF_STREAM_TOKEN. 
+/*! Runner function with dedicated iterative loop mechanism,
+ *  to avoid overhead of calling 250-line single token getter
+ *  every time.
+ *  - For calling conditions, look on public interface method.
  */ 
-void LexerImpl::start(){
-    // Check if call conditions are met (not running already, and using threads).
-    if( running || !useBlockingQueue )
-        return;
-    running = true;
-
+static void LexerImpl::runner_dedicatedIteration( LexerImpl& lex ){
+    
+}
+ 
+/*! Runner function which uses the single-token getter function
+ *  (which has a huge overhead).
+ *  - Easy and simple implementation.
+ *  - For more optimized, dedicated runner iteration loop, use the
+ *    runner_dedicatedIteration function.
+ */ 
+static void LexerImpl::runner_usingTokenGetter( LexerImpl& lex ){
     while( 1 ){
         // Allocate a new token.
         LexicToken tok;
-        int tt = getNextTokenPriv( *this, tok );
+        int tt = lex.getNextTokenPriv( lex, tok );
 
         // If good, put to queue.
         if(tt >= 0)
-            bQueue->push( std::move( tok ) ); 
+            lex.bQueue->push( std::move( tok ) ); 
 
         // Break loop if Fatal Error or Stream Ended (-1).
         if( tt < 0 )
@@ -481,7 +494,29 @@ void LexerImpl::start(){
     }
 
     // At the end, push a token which will indicate the end of stream, to prevent deadlocks.
-    bQueue->push( LexicToken( LexicToken::END_OF_STREAM_TOKEN, std::string() ) );
+    lex.bQueue->push( LexicToken( LexicToken::END_OF_STREAM_TOKEN, std::string() ) );
+}
+
+/*! Public interface to runner function, which fills the blocking queue with tokens.
+ *  - Does the job of synchronization (mutexes, etc), 
+ *    and calls the implementation function.
+ *  - Implementation runs until the end of stream, or until error occurs.
+ *
+ *  - CALLING RULES:
+ *    - Can be called only when multithreading (using the Blocking Queue).
+ *    - Also, only one instance of this function may execute at time.
+ *
+ *  TODO: Don't use blocking queues, but implement an embedded condition-waiting 
+ *        system, to avoid overhead and error-pronity of pushing END_OF_STREAM_TOKEN. 
+ */
+void LexerImpl::start(){
+    // Check if call conditions are met (not running already, and using threads).
+    if( running || !useBlockingQueue )
+        return;
+    running = true; 
+
+    // Call implementation-specific private function.
+    runner_priv();
 
     running = false;    
 }

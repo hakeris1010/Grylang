@@ -12,8 +12,8 @@ const char* testLexics =
 //"<regex_delim> := <operator> | \"\\w\" ;"
 ;
 
-const char* testProgram = //"aaaaaa 11";
-"int i = 0;;";
+const char* testProgram = "aaaaaa;11";
+//"int i = 0;;";
 
 
 int main(int argc, char** argv){
