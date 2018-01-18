@@ -62,7 +62,8 @@ GRYLLOPARSEPROGRAM_LIBS:= -l$(GRYLLOPARSE) $(LIBS_GRYLLOPARSE)
 
 #--------- Test sources ---------#
 
-TEST_SOURCES= src/test/test1.cpp 
+TEST_SOURCES= src/test/test1.cpp \
+			  src/test/test_lexerimpl.cpp
 
 TEST_LIBS= -l$(GRYLLOPARSE) $(LIBS_GRYLLOPARSE)
 
