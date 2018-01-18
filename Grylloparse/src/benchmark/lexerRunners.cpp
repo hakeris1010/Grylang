@@ -4,8 +4,6 @@
 #include "grylloparse.hpp"
 #include "lexer.hpp"
 
-const bool useMultithreading = true;
-
 const char* testLexics =
 "<ident> := \"\\w+\" ;\n"
 "<operator> := \"[;=+\\-\\*/\\[\\]{}<>%]\" ;\n"
@@ -14,15 +12,13 @@ const char* testLexics =
 //"<regex_delim> := <operator> | \"\\w\" ;"
 ;
 
-const char* testProgram = "aaaaaabbbbbbbbbbb;11";
-//"int i = 0;;";
-
+//const char* testProgram = "aaaaaabbbbbbbbbbb;11;babababa;+*+*+*ahuibd\n   12{{{}}}bajbsdjk";
 
 int main(int argc, char** argv){
     std::cout<<"Newt newt!\n";
     
     // Stringstream for data.
-    std::istringstream sstr( testLexics );
+    /*std::istringstream sstr( testLexics );
 
     // Test the GBNF stuff
     gbnf::GbnfData lexicData;
@@ -68,6 +64,7 @@ int main(int argc, char** argv){
 
         delete lexer;
     }
+    */
 
     return 0;
 }
