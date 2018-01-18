@@ -338,6 +338,7 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
 
                         if( lex.verbosity > 0 )
                             std::cout<<" ERROR! Token \""<< m[i] << "\" matched the Error Group!\n";
+                        lex.bufferPointer = tokEnd;
                         lex.throwError( "Invalid token." );
                     } 
 
@@ -747,13 +748,27 @@ void LexerImpl::start(){
         return;
     running = true; 
 
-    // Call implementation-specific private function.
-    runnerPriv( *this );
+    // Check for exceptions, to avoid deadlocks.
+    std::exception ex;
+    bool errorOccured = false;
+
+    try{
+        // Call implementation-specific private function.
+        runnerPriv( *this );
+    } 
+    catch( const std::exception& e ){
+        ex = e;
+        errorOccured = true;
+    }
      
     // At the end, push a token which will indicate the end of stream, to prevent deadlocks.
     bQueue->push( LexicToken( LexicToken::END_OF_STREAM_TOKEN, std::string() ) ); 
 
     running = false;    
+
+    // ReThrow the exception if it occured.
+    if( errorOccured )
+        throw ex;
 }
 
 /*! Get next token. 
