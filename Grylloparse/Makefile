@@ -22,6 +22,7 @@ LIBDIR= lib
 INCLUDEDIR= include
 BINDIR= bin
 TESTDIR= $(BINDIR)/test
+BENCHDIR= $(BINDIR)/benchmark
 
 BINDIR_RELEASE= $(BINDIR)/release
 BINDIR_DEBUG= $(BINDIR)/debug
@@ -34,7 +35,7 @@ LIBCLUDES= -L../gryltools/libGrylTools/lib/static -L../gbnf/lib/static
 
 #====================================#
 #set directories
-ZSH_RESULT:=$(shell mkdir -p $(TESTDIR) $(LIBDIR) \
+ZSH_RESULT:=$(shell mkdir -p $(TESTDIR) $(BENCHDIR) $(LIBDIR) \
    			$(LIBDIR)/static $(LIBDIR)/shared \
 			$(BINDIR_RELEASE) $(BINDIR_DEBUG) $(INCLUDEDIR))
 
@@ -63,7 +64,12 @@ GRYLLOPARSEPROGRAM_LIBS:= -l$(GRYLLOPARSE) $(LIBS_GRYLLOPARSE)
 
 TEST_SOURCES= src/test/test1.cpp 
 
-TEST_LIBS= -l$(GRYLLOPARSE)
+TEST_LIBS= -l$(GRYLLOPARSE) $(LIBS_GRYLLOPARSE)
+
+#--------- Benchmark sources ---------#
+# Benchmarks use the same config as tests.
+
+BENCH_SOURCES= src/benchmark/lexerRunners.cpp 
 
 #====================================#
 
@@ -152,7 +158,7 @@ $(GRYLLOPARSEPROGRAM): $(GRYLLOPARSEPROGRAM_SOURCES:.cpp=.o)
 #===================================#
 # Tests
 
-test_main: test_debops tests
+test_main: test_debops tests benchmarks
 	for file in $(TESTDIR)/* ; do \
 		./$$file $(TEST_EXEC_ARGS) ; \
 	done
@@ -168,6 +174,16 @@ tests: $(TEST_SOURCES:.cpp=.o)
 		exe=$(TESTDIR)/$${y##*/} ; \
 		if [ ! -f $$exe ] || [ $$file -nt $$exe ] ; then \
 			echo "Recompiling test $$exe ..." ; \
+			$(CXX) -o $$exe $$file $(TEST_LIBS) $(LDFLAGS) ; \
+		fi ; \
+	done
+
+benchmarks: $(BENCH_SOURCES:.cpp=.o) 
+	for file in $^ ; do \
+		y=$${file%.o} ; \
+		exe=$(BENCHDIR)/$${y##*/} ; \
+		if [ ! -f $$exe ] || [ $$file -nt $$exe ] ; then \
+			echo "Recompiling benchmark $$exe ..." ; \
 			$(CXX) -o $$exe $$file $(TEST_LIBS) $(LDFLAGS) ; \
 		fi ; \
 	done
