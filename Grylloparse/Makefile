@@ -7,7 +7,7 @@ AR = ar
 CXXFLAGS= -std=c++14 
 LDFLAGS= 
 
-TEST_CXXFLAGS= -std=c++14 
+TEST_CXXFLAGS= -std=c++14 -g -O0 -fno-inline-functions
 TEST_LDFLAGS=
 TEST_EXEC_ARGS=
 

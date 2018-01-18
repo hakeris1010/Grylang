@@ -140,11 +140,11 @@ public:
      *                   Must comply to the Lexer API.
      */ 
     LexerImpl( const RegLexData& lexicData, std::istream& strm, bool useBQ=false, 
-               const std::function< int(LexerImpl&, LexicToken&) >& getNxTk = 
-                     std::function< int(LexerImpl&, LexicToken&) >(),
                size_t _verbosity = DEFAULT_VERBOSITY, 
                bool _useDedicatedRunner = DEFAULT_UDR, 
-               size_t bufferSize = DEFAULT_BUFFSIZE )
+               size_t bufferSize = DEFAULT_BUFFSIZE,  
+               const std::function< int(LexerImpl&, LexicToken&) >& getNxTk = 
+                     std::function< int(LexerImpl&, LexicToken&) >() )
         : useBlockingQueue( useBQ ), useDedicatedLoopyTokenizer( _useDedicatedRunner ),
           BUFFER_SIZE( bufferSize ), verbosity( _verbosity ),
           lexics( lexicData ), rdr( strm ), 
@@ -153,11 +153,11 @@ public:
     { setFunctions(); }
 
     LexerImpl( RegLexData&& lexicData, std::istream& stream, bool useBQ = false,
-               std::function< int(LexerImpl&, LexicToken&) >&& getNxTk = 
-                    std::function< int(LexerImpl&, LexicToken&) >(),
                size_t _verbosity = DEFAULT_VERBOSITY, 
                bool _useDedicatedRunner = DEFAULT_UDR, 
-               size_t bufferSize = DEFAULT_BUFFSIZE ) 
+               size_t bufferSize = DEFAULT_BUFFSIZE,
+               std::function< int(LexerImpl&, LexicToken&) >&& getNxTk = 
+                    std::function< int(LexerImpl&, LexicToken&) >() ) 
         : useBlockingQueue( useBQ ), useDedicatedLoopyTokenizer( _useDedicatedRunner ),
           BUFFER_SIZE( bufferSize ), verbosity( _verbosity ),
           lexics( std::move(lexicData) ), rdr( stream ), 
