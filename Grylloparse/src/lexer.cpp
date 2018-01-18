@@ -41,7 +41,9 @@ class LexerImpl : public BaseLexer
 {
 // Specific constants.
 public:
-    const static size_t BUFFER_SIZE = 5;
+    const static size_t DEFAULT_BUFFSIZE = 5;
+    const static int    DEFAULT_VERBOSITY = 0;
+    const static bool   DEFAULT_UDR = true;
 
     // Token extractor responses.
     // < 0 means fatal error
@@ -63,8 +65,9 @@ private:
     const bool useBlockingQueue;
     
     const bool useLineStats = false;
-    const bool useDedicatedLoopyTokenizer = true;
+    const bool useDedicatedLoopyTokenizer;
 
+    const size_t BUFFER_SIZE;
     const int verbosity = 3;
 
     // Lexic Data (RegLex-format).
@@ -137,17 +140,27 @@ public:
      *                   Must comply to the Lexer API.
      */ 
     LexerImpl( const RegLexData& lexicData, std::istream& strm, bool useBQ=false, 
+               size_t _verbosity = DEFAULT_VERBOSITY, 
+               bool _useDedicatedRunner = DEFAULT_UDR, 
+               size_t bufferSize = DEFAULT_BUFFSIZE,  
                const std::function< int(LexerImpl&, LexicToken&) >& getNxTk = 
                      std::function< int(LexerImpl&, LexicToken&) >() )
-        : useBlockingQueue( useBQ ), lexics( lexicData ), rdr( strm ), 
+        : useBlockingQueue( useBQ ), useDedicatedLoopyTokenizer( _useDedicatedRunner ),
+          BUFFER_SIZE( bufferSize ), verbosity( _verbosity ),
+          lexics( lexicData ), rdr( strm ), 
           bQueue( useBQ ? new gtools::BlockingQueue< LexicToken >() : nullptr ),
           getNextTokenPriv( getNxTk )
     { setFunctions(); }
 
     LexerImpl( RegLexData&& lexicData, std::istream& stream, bool useBQ = false,
+               size_t _verbosity = DEFAULT_VERBOSITY, 
+               bool _useDedicatedRunner = DEFAULT_UDR, 
+               size_t bufferSize = DEFAULT_BUFFSIZE,
                std::function< int(LexerImpl&, LexicToken&) >&& getNxTk = 
-                    std::function< int(LexerImpl&, LexicToken&) >() )
-        : useBlockingQueue( useBQ ), lexics( std::move(lexicData) ), rdr( stream ), 
+                    std::function< int(LexerImpl&, LexicToken&) >() ) 
+        : useBlockingQueue( useBQ ), useDedicatedLoopyTokenizer( _useDedicatedRunner ),
+          BUFFER_SIZE( bufferSize ), verbosity( _verbosity ),
+          lexics( std::move(lexicData) ), rdr( stream ), 
           bQueue( useBQ ? new gtools::BlockingQueue< LexicToken >() : nullptr ),
           getNextTokenPriv( std::move( getNxTk ) )
     { setFunctions(); }
@@ -345,7 +358,7 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
                         size_t tokp = (lex.bufferPointer - lex.buffer.c_str()) + m.position();
                         size_t remLen = lex.bufferEnd - tokEnd;
 
-                        std::string remBuff( BUFFER_SIZE, '\0' );
+                        std::string remBuff( lex.BUFFER_SIZE, '\0' );
                         std::memmove( &(remBuff[0]), tokEnd, remLen );
 
                         if( tokp > 0 ){
@@ -406,14 +419,14 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
             size_t curTokStart = (lex.bufferPointer - &(lex.buffer[0])) + m.position();
 
             // If token is longer than half of BUFFER_SIZE, extend the buffer.
-            if( (size_t)(m.length()) > (size_t)(lex.buffer.size() - LexerImpl::BUFFER_SIZE/2) ){
+            if( (size_t)(m.length()) > (size_t)(lex.buffer.size() - lex.BUFFER_SIZE/2) ){
                 if( lex.verbosity > 2 )
                     std::cout<< " Extending Buffer.\n";
 
                 // Move memory to the resized buffer, if the token starts later.
                 if( curTokStart > 0 ){
                     // Create new buffer
-                    std::string tmp( lex.buffer.size() + (LexerImpl::BUFFER_SIZE / 2), '\0' );
+                    std::string tmp( lex.buffer.size() + (lex.BUFFER_SIZE / 2), '\0' );
 
                     // Move data to new buffer.
                     std::memmove( &(tmp[0]), &(lex.buffer[0]) + curTokStart, m.length() );
@@ -422,7 +435,7 @@ int LexerImpl::getNextTokenPriv_Regexed( LexerImpl& lex, LexicToken& tok ){
                     lex.buffer.assign( std::move( tmp ) );
                 }
                 else
-                    lex.buffer.resize( lex.buffer.size() + (LexerImpl::BUFFER_SIZE / 2), '\0' );
+                    lex.buffer.resize( lex.buffer.size() + (lex.BUFFER_SIZE / 2), '\0' );
 
                 // Mark this flag, for buffer eset after valid token is matched.
                 bufferWasExtended = true;
@@ -571,7 +584,7 @@ void LexerImpl::runner_dedicatedIteration( LexerImpl& lex ){
                         tok.data.assign( std::move( lex.buffer ) );
 
                         // Move remaining data to new buffer.
-                        lex.buffer.assign( LexerImpl::BUFFER_SIZE, '\0' );
+                        lex.buffer.assign( lex.BUFFER_SIZE, '\0' );
                         std::memmove( &(lex.buffer[0]), tokEnd, (lex.bufferEnd - tokEnd) );
 
                         // Now we can safely resize the token buffer.
@@ -615,14 +628,14 @@ void LexerImpl::runner_dedicatedIteration( LexerImpl& lex ){
             fetchOffset = tokEnd - lex.bufferPointer;
 
             // If token is longer than half of BUFFER_SIZE, extend the buffer.
-            if( fetchOffset > (size_t)(lex.buffer.size() - LexerImpl::BUFFER_SIZE/2) ){
+            if( fetchOffset > (size_t)(lex.buffer.size() - lex.BUFFER_SIZE/2) ){
                 if( lex.verbosity > 2 )
                     std::cout<< " Extending Buffer.\n";
 
                 // Move memory to the resized buffer, if the token starts later.
                 if( fetchOffset > 0 ){
                     // Create new buffer
-                    std::string tmp( lex.buffer.size() + (LexerImpl::BUFFER_SIZE / 2), '\0' );
+                    std::string tmp( lex.buffer.size() + (lex.BUFFER_SIZE / 2), '\0' );
 
                     // Move data to new buffer. bufferPointer points to start of the token.
                     std::memmove( &(tmp[0]), lex.bufferPointer, fetchOffset);
@@ -631,7 +644,7 @@ void LexerImpl::runner_dedicatedIteration( LexerImpl& lex ){
                     lex.buffer.assign( std::move( tmp ) );
                 }
                 else
-                    lex.buffer.resize(lex.buffer.size() + (LexerImpl::BUFFER_SIZE / 2), '\0');
+                    lex.buffer.resize(lex.buffer.size() + (lex.BUFFER_SIZE / 2), '\0');
 
                 // Mark this flag, for buffer eset after valid token is matched.
                 bufferWasExtended = true;
