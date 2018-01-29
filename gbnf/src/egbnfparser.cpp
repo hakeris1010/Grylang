@@ -42,7 +42,7 @@ private:
     inline void updateLineStats( char c );
 
     //short getTagIDfromTable( const std::string& name, bool insertIfNotPresent );
-    void getTagName( std::string& str, bool startsWithLetter = true );
+    void getTagName( std::string& str );
     int  parseGrammarToken( GrammarToken& tok, int recLevel = 1, char endChar = '}' );
     bool parseGrammarOption( GrammarToken& tok );
     void parseGrammarRule();
@@ -64,11 +64,13 @@ inline void ParseInput::throwError( const std::string& message ) const {
 }
 
 /*! Simplified logging mechanism.
+ *  @param dewit - (Do it) - whether to output a log message or not.
+ *  @param verboseness - level of verbosity (higher means more verbose). 
  */ 
 template<typename... Args>
-inline void ParseInput::logf( bool dewit, int priority, 
+inline void ParseInput::logf( bool dewit, int verboseness, 
             const char* message, Args&&... args ) const {
-    if(!dewit || (priority > debugMode) )
+    if(!dewit || (verboseness > debugMode) )
         return;
     hlogf( message, std::forward<Args>( args )... );
 }
@@ -109,15 +111,16 @@ inline void ParseInput::updateLineStats( char c ) {
 }
 
 /*! Gets the name of the tag at current position. 
+ *  Tag format: <\s*\w+\s*>
  *  @param str - a buffer to which to write a tag.
- *  @param startsWithLetter - if false, tag starts with a '<',
- *         if true - with a tag-compatibru letter.
  */ 
-void ParseInput::getTagName( std::string& str, bool startsWithLetter ){
+void ParseInput::getTagName( std::string& str ){
     char c = 0;
 
-    if( reader.peekChar() == '<' ) // Starts with a '<' - skip it.
+    if( reader.peekChar() == '<' ){ // Starts with a '<' - skip it.
         reader.getChar( c );
+        reader.skipWhitespace(gtools::StackReader::SKIPMODE_SKIPWS_NONEWLINE, ps.line, ps.pos);
+    }
 
     while( reader.getChar( c ) ){
         updateLineStats( c );
@@ -128,8 +131,22 @@ void ParseInput::getTagName( std::string& str, bool startsWithLetter ){
             break; // if string is not empty, break and return good.    
         }
         // Tag chars: [a-zA-Z_]
-        else if( !std::isalnum( static_cast<unsigned char>(c) ) && c != '_' ){
-            throwError( "Wrong character in a tag!" );
+        else if( !std::isalnum( c ) && c != '_' ){
+            // Got whitespace (not endline). After space only end can be reached.
+            if( std::isspace( c ) && c != '\n' ){
+                reader.getChar( c, gtools::StackReader::SKIPMODE_SKIPWS_NONEWLINE, 
+                                ps.line, ps.pos );
+                // Check if end. Only end is allowed.
+                if( c == '>' ){ 
+                    if( str.empty() )
+                        throwError( "Tag is empty!" );
+                    break; // if string is not empty, break and return good.    
+                } 
+                else
+                    throwError( "Wrong character in a tag!" );
+            }
+            else
+                throwError( "Wrong character in a tag!" );
         }
         str.push_back( c );
     }
@@ -302,11 +319,19 @@ bool ParseInput::parseGrammarOption( GrammarToken& tok ){
 }
 
 /*! Parse the grammar rule definition. 
- *  Must start reading at the position of Tag Start ('<').
+ *  MUST start reading at the position of Tag Start ('<').
+ *
+ *  - Identifying Tag can start with a special character.
+ *     If it is, it can specify these things.
+ *    1. '#' - Param tag. Expect param value next.
+ *    2. '!' - First rule. 
+ *
  *  - Function parses the rule, and puts it directly into GbnfData structure.
  */ 
 void ParseInput::parseGrammarRule(){
     const bool dbg = true;
+    const int SPECMODE_FIRST_RULE = 1;
+    const int SPECMODE_PARAM      = 2;
 
     std::string tmp;
     tmp.reserve(256);
@@ -314,52 +339,83 @@ void ParseInput::parseGrammarRule(){
     logf(dbg, 1, "[parseGrammarRule(_)]... ");
     logf(dbg, 2, "\nGetting TagName... \n");
     
-    // Get the first tag (the NonTerminal this rule defines), and it's ID.
-    getTagName( tmp );
-    size_t rID = data.getTagIDfromTable( tmp, true ); // Add to table if not present.
-    
-    // Create a new grammar rule, which we'll fill in next steps.
-    GrammarRule rule( rID );
+    // 1. Get the tag start '<' and the special char, if there exists one.
+    // Then get the first tag (the NonTerminal this rule defines), and it's ID.
+    char c = 0;
+    reader.getChar(c);
+    if( c != '<' )
+        throwError( "Wrong symbols at rule's start!" );
 
-    logf(dbg, 1, " TagName: %s, ID: %d \n", tmp.c_str(), rule.getID());
-    logf(dbg, 2, "Getting assignment OP...\n");
+    // Check for special.
+    reader.skipWhitespace( gtools::StackReader::SKIPMODE_SKIPWS_NONEWLINE );
+    char c = reader.peekChar();
+
+    int specMode = 0;
+    if( c == '!' )
+        specMode = SPECMODE_FIRST_RULE;
+    else if( c == '#' )
+        specMode = SPECMODE_PARAM;
+
+    // Get tag name string.
+    getTagName( tmp );
 
     // Get the definition-assignment operator (::==, ::=, :==, :=).
-    reader.getString( &tmp[0], 4, gtools::StackReader::SKIPMODE_SKIPWS, ps.line, ps.pos );
+    char ass[4];
+    reader.getString( ass, 4, gtools::StackReader::SKIPMODE_SKIPWS, ps.line, ps.pos );
 
-    if( !strncmp(tmp.c_str(), "::==", 4) ) 
+    if( !strncmp( ass, "::==", 4 ) ) 
         {}
-    else if( !strncmp(tmp.c_str(), "::=", 3) || !strncmp(tmp.c_str(), ":==", 3) )
-        reader.putChar( tmp[3] );
-    else if( !strncmp(tmp.c_str(), ":=", 2) )
-        reader.putString( tmp.c_str()+2, 2 );  
+    else if( !strncmp( ass, "::=", 3) || !strncmp( ass, ":==", 3) )
+        reader.putChar( ass[3] );
+    else if( !strncmp( ass, ":=", 2) )
+        reader.putString( ass+2, 2 );  
+    else if( !strncmp( ass, "=",  1) )
+        reader.putString( ass+1, 3 );   
     else
-        throwError("No Def-Assignment operator on a rule");
+        throwError("No Def-Assignment operator on a rule"); 
 
-    // Get options (ROOT type tokens), one by one, in a loop
-    bool areMore = true;
-
-    logf(dbg, 2, "Getting Options in a Loop...\n\n");
-
-    while( areMore ){
-        rule.options.push_back( GrammarToken() );
-        GrammarToken& tok = rule.options[ rule.options.size()-1 ];
-
-        areMore = parseGrammarOption( tok ); 
-
-        // Accept only non-empty option tokens.
-        if( tok.children.empty() )
-            rule.options.pop_back();
-
-        logf(dbg, 2, "Got Option: Count of Childs: %d\n\n", tok.children.size());
+    // Parameter mode. Harvest only one token.
+    if( specMode == SPECMODE_PARAM ){
+        
     }
+    // If Grammar Rule is expected, get options.
+    else{
+        // Add to table if not present. 
+        size_t rID = data.getTagIDfromTable( std::move(tmp), true ); 
+        
+        // Create a new grammar rule, which we'll fill in next steps.
+        GrammarRule rule( rID );
+        if( specMode == SPECMODE_FIRST_RULE )
+            rule.setProperty( GrammarRule::FIRST_RULE );
 
-    // We've parsed a rule. All options are parsed.
-    logf(dbg, 1, " Option count: %d\n\n", rule.options.size());
-    logf(dbg, 2, "============================\n\n");
+        logf(dbg, 1, " TagName: %s, ID: %d \n", data.getTag( rule.getID() )->data, rule.getID());
+        logf(dbg, 2, "Getting assignment OP...\n");
 
-    // Put the rule into the grammar table using move semantics.
-    data.insertRule( std::move( rule ) ); // Best part: std::move :D
+        // Get options (ROOT type tokens), one by one, in a loop
+        bool areMore = true;
+
+        logf(dbg, 2, "Getting Options in a Loop...\n\n");
+
+        while( areMore ){
+            rule.options.push_back( GrammarToken() );
+            GrammarToken& tok = rule.options[ rule.options.size()-1 ];
+
+            areMore = parseGrammarOption( tok ); 
+
+            // Accept only non-empty option tokens.
+            if( tok.children.empty() )
+                rule.options.pop_back();
+
+            logf(dbg, 2, "Got Option: Count of Childs: %d\n\n", tok.children.size());
+        }
+
+        // We've parsed a rule. All options are parsed.
+        logf(dbg, 1, " Option count: %d\n\n", rule.options.size());
+        logf(dbg, 2, "============================\n\n");
+
+        // Put the rule into the grammar table using move semantics.
+        data.insertRule( std::move( rule ) ); // Best part: std::move :D
+    }
 }
 
 // Convert EBNF to GBNF.
