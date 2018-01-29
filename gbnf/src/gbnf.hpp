@@ -177,75 +177,6 @@ inline std::ostream& operator<< (std::ostream& os, const GrammarRule& rule){
     return os;
 }
 
-/*
-class GbnfData_Map{
-private:
-    int lastTagID = 0;
-
-    std::map<size_t, NonTerminal> tagTable;
-    std::map<size_t, GrammarRule> grammarTable;
-
-public:
-    const static int FORMAT_EBNF     = 1;
-    const static int FORMAT_BNF      = 2;
-    const static int LEFT_RECURSIVE  = 4;
-    const static int RIGHT_RECURSIVE = 8;
-
-    GbnfData(){}
-    GbnfData( std::initializer_list< NonTerminal >&& tagTbl, 
-              std::initializer_list< GrammarRule >&& grammarTbl )
-    { 
-        for( auto&& a : tagTbl )
-            tagTable.insert( std::pair<size_t, NonTerminal>( a.getID(), std::move(a) ) );
-        for( auto&& a : grammarTbl )
-            grammarTable.insert( std::pair<size_t, GrammarRule>( a.getID(), std::move(a) ) ); 
-    }
-     
-    // Last tag getters.
-    void print( std::ostream& os, int mode=0, const std::string& leader="" ) const;
-    inline int getLastTagID() const { return lastTagID; }
-
-    // Get rules and tags by index ( ID ).    
-    inline auto& getTag( size_t i ) {
-        return (tagTable.find( i ))->second;
-    }
-    inline auto& getRule( size_t i ) {
-        return (grammarTable.find( i ))->second;
-    }
-
-    // GrammarRule inserters. Support move semantics.
-    inline void insertRule( GrammarRule&& rule ){
-        grammarTable.insert( std::pair<size_t, GrammarRule>( rule.getID(), std::move(rule) ) );
-    }
-    inline void insertRule( const GrammarRule& rule ){
-        grammarTable.insert( std::pair<size_t, GrammarRule>( rule.getID(), rule ) );
-    }
- 
-    // New Tag inserters.
-    inline size_t insertTag( const std::string& name ){
-        lastTagID++;
-        tagTable.insert( std::pair<size_t, NonTerminal>(
-            lastTagID, NonTerminal( lastTagID, name )) );
-        return lastTagID;
-    }
-    inline size_t insertTag( std::string&& name ){
-        lastTagID++;
-        tagTable.insert( std::pair<size_t, NonTerminal>( lastTagID, 
-                    NonTerminal( lastTagID, std::move( name ) )) ); 
-        return lastTagID;
-    }
-
-    size_t getTagIDfromTable( const std::string& name, bool insertIfNotPresent );
-
-    // Removers. 
-    inline void removeTag( size_t id ){
-        tagTable.erase( id );
-    }
-    inline void removeRule( size_t id ){
-        grammarTable.erase( id );
-    }
-};
-*/
 
 /*! Whole-File structure.  
  *  This is the structure which holds the whole grammar which is being worked with.
@@ -260,20 +191,25 @@ private:
 
     std::vector< NonTerminal > tagTable; 
     std::vector< GrammarRule > grammarTable;     
+    std::map< std::string, std::string > paramTable;
 
 public:
-    const static int FORMAT_EBNF     = 1;
-    const static int FORMAT_BNF      = 2;
-    const static int LEFT_RECURSIVE  = 4;
-    const static int RIGHT_RECURSIVE = 8;
-
-    int flags = 0;
-
     GbnfData(){}
+
+    /*! Constructor from lists of data. 
+     *  Used when statically instantiating an object.
+     */ 
     GbnfData( int flag, std::initializer_list< NonTerminal >&& tagTbl, 
-                        std::initializer_list< GrammarRule >&& grammarTbl )
-        : tagTable( std::move(tagTbl) ), grammarTable( std::move(grammarTbl) ), flags( flag )
+              std::initializer_list< GrammarRule >&& grammarTbl,
+              std::initializer_list< std::pair<std::string, std::string> >&& paramTbl )
+        : tagTable( std::move(tagTbl) ), grammarTable( std::move(grammarTbl) ), 
+          paramTable( std::move( paramTbl ) ), flags( flag )
     { }
+
+    /*! Construct from GBNF-formatted source file.
+     *  @param input - a stream from a file containing GBNF language source.
+     */ 
+    GbnfData( std::istream& input );
      
     // Last tag getters.
     void print( std::ostream& os, int mode=0, const std::string& leader="" ) const;
@@ -284,18 +220,24 @@ public:
     // Get const references to tables.
     const auto& tagTableConst() const { return tagTable; }
     const auto& grammarTableConst() const { return grammarTable; }
+    const auto& paramTableConst() const { return paramTable; }
 
-    // Get rules by index ( ID ).    
-    // Const and Non-Const Versions.
-    // @return iterator.
+    // Get iterators to begin and end.
+    auto begin() const { return grammarTable.begin(); }
+    auto begin() { return grammarTable.begin(); }
+    auto end() const { return grammarTable.end(); }
+    auto end() { return grammarTable.end(); } 
+
+    /*! Get tags by index ( ID ).    
+     * Const and Non-Const Versions.
+     * @return iterator.
+     */ 
     inline auto getTag( size_t i ) {
         if( i < tagTable.size() && (tagTable[i].getID() == i) )
             return tagTable.begin() + i;
 
         return std::lower_bound( tagTable.begin(), tagTable.end(), 
                                  NonTerminal( i ) ); 
-        //if( it != tagTable.end() )
-        //    return *it;
     }
     inline auto getTag( size_t i ) const {
         if( i < tagTable.size() && (tagTable[i].getID() == i) )
@@ -305,9 +247,9 @@ public:
                                  NonTerminal( i ) ); 
     }
 
-    // Get tags by index ( ID ).    
-    // Const and Non-Const Versions.
-    // @return iterator.
+    /*! Get rules by index ( ID ).    
+     * @return iterator pointing to the rule with index i, or if no existing, to end.
+     */
     inline auto getRule( size_t i ) {
         if( i < grammarTable.size() && ( grammarTable[i].getID() == i ) )
             return grammarTable.begin() + i;
@@ -322,6 +264,44 @@ public:
         return std::lower_bound( grammarTable.begin(), grammarTable.end(), 
                                  GrammarRule( i ) ); 
     }
+
+    /*! Gets param's value string.
+     *  @param key - std::string specifying param's name (key)
+     *  @param value - reference to std::string to be filled with value data, 
+     *                 if the param with that key is present in table.
+     *  @return true if found valid existing param.
+     */ 
+    inline bool getParamValue( const std::string& key, std::string& value ) const {
+        auto&& iter = paramTable.find( key );
+        if( iter != paramTable.end() ){ // Element exists
+            value = iter->second();
+            return true;
+        }
+        return false;
+    }
+
+    /*! Deletes a param.
+     *  @param key - std::string specifying param's name (key)
+     */ 
+    inline void deleteParam( const std::string& key ){
+        paramTable.erase( key );
+    }
+
+    /*! Inserts a param.
+     *  @param update - if set, will update the value of the param if it already exists.
+     */ 
+    inline void insertParam( const std::string& key, const std::string& value, 
+                             bool update = false ){
+        if( update ){
+            auto&& iter = paramTable.find( key );
+            if( iter != paramTable.end() ){ // Element exists
+                iter->second = value;
+                return;
+            } 
+        }
+        // If element doesn't exist of not update, just insert the element.
+        paramTable.insert( std::pair<std::string, std::string>( key, value ) );
+    } 
 
     // GrammarRule inserters. Support move semantics.
     inline void insertRule( GrammarRule&& rule ){
